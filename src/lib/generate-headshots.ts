@@ -1,7 +1,7 @@
 import { fal } from "@fal-ai/client";
-import { DEFAULT_NEGATIVE_PROMPT, type VariationSpec } from "./variations";
+import type { VariationSpec } from "./variations";
 
-const MODEL_ID = "fal-ai/firered-image-edit";
+const MODEL_ID = "fal-ai/image-apps-v2/headshot-photo";
 
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -15,13 +15,9 @@ async function generateOne(
 ): Promise<string> {
   const result = await fal.subscribe(MODEL_ID, {
     input: {
-      image_urls: [beforeUrl],
-      prompt: spec.prompt,
-      negative_prompt: DEFAULT_NEGATIVE_PROMPT,
-      image_size: spec.image_size,
-      num_images: 1,
-      guidance_scale: 4,
-      num_inference_steps: 30,
+      image_url: beforeUrl,
+      background_style: spec.background_style,
+      aspect_ratio: spec.aspect_ratio,
     },
     pollInterval: 2000,
   });
