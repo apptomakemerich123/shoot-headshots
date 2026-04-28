@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Shoot — AI Professional Headshots",
+  title: "Portr — AI professional headshots",
   description:
-    "Upload a selfie, get a premium professional headshot. Fast, private, and easy.",
+    "Upload one photo. Get ten AI headshot variations — backgrounds, lighting, and crops.",
 };
 
 export default function RootLayout({

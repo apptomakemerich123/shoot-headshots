@@ -1,6 +1,6 @@
-## Shoot — AI Headshot Generator
+## Portr — AI headshots
 
-Premium minimal Next.js app that takes a user photo and generates a professional headshot via FAL.
+Next.js app: upload one photo, pay once, get **10** AI headshot variations (stored server-side by Stripe session). Email delivery via Resend.
 
 ### Run locally
 
@@ -17,10 +17,11 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-### Stripe (download paywall)
+### Stripe & Resend
 
-- If `STRIPE_SECRET_KEY` is **not** set, the “Pay to download” button will **simulate** payment in dev so you can test the UX.
-- When you’re ready, set `STRIPE_SECRET_KEY` in `.env.local` to enable real Checkout.
+- Set `STRIPE_SECRET_KEY` for Checkout ($14.99 product configured in code).
+- Set `RESEND_API_KEY` (and optionally `RESEND_FROM_EMAIL`) for download-link emails.
+- Without KV, uploads/orders persist in `.data/portr-store.json` locally. Use `PORT_MEMORY_STORE_ONLY=1` only if you explicitly want RAM-only storage.
 
 ## Getting Started
 

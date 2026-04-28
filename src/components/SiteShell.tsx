@@ -18,7 +18,7 @@ export function SiteShell({
               <span className="h-2 w-2 rounded-full bg-white" />
             </span>
             <span className="text-sm font-semibold tracking-wide">
-              Shoot<span className="text-white/60">.studio</span>
+              Portr<span className="text-white/60">.ai</span>
             </span>
           </Link>
           <nav className="flex items-center gap-3">
@@ -42,13 +42,10 @@ export function SiteShell({
       <main>{children}</main>
       <footer className="border-t border-[var(--border)]">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-8 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Shoot</p>
-          <p className="text-white/40">
-            Minimal demo. Add auth, storage, and policies for production.
-          </p>
+          <p>© {new Date().getFullYear()} Portr</p>
+          <p className="text-white/40">AI headshots from one photo.</p>
         </div>
       </footer>
     </div>
   );
 }
-

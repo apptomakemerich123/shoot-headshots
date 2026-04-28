@@ -1,23 +1,25 @@
 import { SiteShell } from "@/components/SiteShell";
 import { Button, Panel } from "@/components/ui";
+import { PRODUCT } from "@/lib/types-order";
 
 export default function Home() {
   return (
-    <SiteShell ctaHref="/upload" ctaLabel="Generate headshot">
+    <SiteShell ctaHref="/upload" ctaLabel="Get started">
       <section className="relative overflow-hidden border-b border-[var(--border)]">
         <div className="pointer-events-none absolute inset-0 bg-grid opacity-40" />
         <div className="absolute inset-x-0 top-[-160px] mx-auto h-[340px] w-[680px] rounded-full bg-white/10 blur-3xl" />
         <div className="mx-auto max-w-6xl px-4 py-20 sm:py-28">
           <div className="max-w-2xl">
             <p className="text-xs font-medium tracking-[0.24em] text-white/60">
-              AI PROFESSIONAL HEADSHOTS
+              Portr · AI headshots
             </p>
             <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight sm:text-6xl">
-              A premium headshot from a single photo.
+              Ten professional looks from one photo.
             </h1>
             <p className="mt-5 text-base leading-7 text-white/70 sm:text-lg">
-              Upload a selfie. Get a clean, studio-style headshot that looks
-              like you—just better lit, sharper, and more professional.
+              Portr generates a full set of headshots — different backgrounds,
+              lighting, and crops — so you can pick the perfect shot for LinkedIn,
+              your site, or casting.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button href="/upload">Upload a photo</Button>
@@ -29,8 +31,7 @@ export default function Home() {
               </a>
             </div>
             <p className="mt-4 text-xs text-white/45">
-              Tip: use a front-facing photo, neutral expression, clean
-              background.
+              Tip: use a front-facing photo, neutral expression, good lighting.
             </p>
           </div>
         </div>
@@ -43,7 +44,8 @@ export default function Home() {
               How it works
             </h2>
             <p className="mt-2 text-sm text-white/65">
-              Simple flow. No accounts required for this demo.
+              One simple package — ${(PRODUCT.cents / 100).toFixed(2)} for{" "}
+              {PRODUCT.count} variations.
             </p>
           </div>
           <div className="hidden sm:block">
@@ -58,30 +60,29 @@ export default function Home() {
             <p className="text-xs font-medium tracking-[0.18em] text-white/55">
               01 UPLOAD
             </p>
-            <p className="mt-3 text-base font-medium">Pick one clear photo.</p>
+            <p className="mt-3 text-base font-medium">One clear photo.</p>
             <p className="mt-2 text-sm leading-6 text-white/65">
-              A well-lit selfie works best. Avoid sunglasses and heavy
-              occlusion.
+              We store it securely on our servers until your order completes.
             </p>
           </Panel>
           <Panel className="p-6">
             <p className="text-xs font-medium tracking-[0.18em] text-white/55">
-              02 GENERATE
+              02 CHECKOUT
             </p>
-            <p className="mt-3 text-base font-medium">AI refines your look.</p>
+            <p className="mt-3 text-base font-medium">Pay once via Stripe.</p>
             <p className="mt-2 text-sm leading-6 text-white/65">
-              We run a headshot model and return a studio-style result.
+              ${(PRODUCT.cents / 100).toFixed(2)} unlocks {PRODUCT.count}{" "}
+              AI-generated headshots with varied backgrounds and lighting.
             </p>
           </Panel>
           <Panel className="p-6">
             <p className="text-xs font-medium tracking-[0.18em] text-white/55">
-              03 DOWNLOAD
+              03 DELIVERY
             </p>
-            <p className="mt-3 text-base font-medium">
-              Pay, then download.
-            </p>
+            <p className="mt-3 text-base font-medium">Gallery + email.</p>
             <p className="mt-2 text-sm leading-6 text-white/65">
-              Stripe Checkout unlocks the download button for your result.
+              Your set is saved to your order (refresh-safe) and we email you
+              download links.
             </p>
           </Panel>
         </div>

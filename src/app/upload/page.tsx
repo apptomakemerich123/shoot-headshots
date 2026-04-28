@@ -10,7 +10,7 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadingText, setLoadingText] = useState<string>("Generating…");
+  const [loadingText, setLoadingText] = useState("Uploading…");
 
   const previewUrl = useMemo(() => {
     if (!file) return null;
@@ -30,30 +30,26 @@ export default function UploadPage() {
       const form = new FormData();
       form.append("file", file);
 
-      setLoadingText("Generating a professional headshot…");
-      const res = await fetch("/api/headshot/generate", {
+      const res = await fetch("/api/upload/register", {
         method: "POST",
         body: form,
       });
 
       const json = (await res.json()) as
-        | { beforeUrl: string; afterUrl: string }
-        | { error: string; fal?: unknown };
+        | { uploadToken: string; beforeUrl: string }
+        | { error: string };
 
-      if (!res.ok || "error" in json) {
-        const detail =
-          "fal" in json && json.fal && typeof json.fal === "object"
-            ? JSON.stringify(json.fal)
-            : null;
-        throw new Error(
-          "error" in json
-            ? `${json.error}${detail ? ` — ${detail}` : ""}`
-            : "Generation failed",
-        );
+      if (!res.ok || !("uploadToken" in json)) {
+        throw new Error("error" in json ? json.error : "Upload failed");
       }
 
-      sessionStorage.setItem("shoot_result", JSON.stringify(json));
-      router.push("/results");
+      try {
+        sessionStorage.setItem("portr_upload_token", json.uploadToken);
+      } catch {
+        /* private mode etc. */
+      }
+
+      router.push(`/results?t=${encodeURIComponent(json.uploadToken)}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
       setLoading(false);
@@ -67,7 +63,8 @@ export default function UploadPage() {
           Upload your photo
         </h1>
         <p className="mt-2 text-sm text-white/65">
-          Use a clear, front-facing photo. JPG/PNG recommended.
+          Clear, front-facing photo works best. Next you’ll check out — then Portr
+          generates your full set.
         </p>
 
         <div className="mt-7 grid gap-4 sm:grid-cols-2">
@@ -92,7 +89,7 @@ export default function UploadPage() {
               <p className="mt-3 text-sm text-white/75">{loadingText}</p>
             ) : (
               <p className="mt-3 text-xs text-white/45">
-                We only use your image to generate the headshot.
+                Stored securely until your order completes.
               </p>
             )}
 
@@ -139,4 +136,3 @@ export default function UploadPage() {
     </SiteShell>
   );
 }
-
