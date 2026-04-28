@@ -27,7 +27,6 @@ export async function POST(req: Request) {
   }
 
   const uploadToken = body.uploadToken;
-
   if (!uploadToken) {
     return Response.json({ error: "Missing uploadToken" }, { status: 400 });
   }
@@ -60,7 +59,7 @@ export async function POST(req: Request) {
       uploadToken,
     },
     success_url: `${origin}/results?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/results?t=${encodeURIComponent(uploadToken)}`,
+    cancel_url: `${origin}/upload`,
   });
 
   if (!session.url) {

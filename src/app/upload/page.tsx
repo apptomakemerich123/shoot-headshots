@@ -49,7 +49,7 @@ export default function UploadPage() {
         /* private mode etc. */
       }
 
-      router.push(`/results?t=${encodeURIComponent(json.uploadToken)}`);
+      router.push(`/checkout?t=${encodeURIComponent(json.uploadToken)}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
       setLoading(false);
