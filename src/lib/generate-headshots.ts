@@ -1,7 +1,13 @@
 import { fal } from "@fal-ai/client";
 import type { VariationSpec } from "./variations";
 
-const MODEL_ID = "fal-ai/image-apps-v2/headshot-photo";
+const MODEL_ID = "fal-ai/flux/dev/image-to-image";
+
+const NEGATIVE_GUARDRAILS =
+  "Avoid: studio lights, camera equipment, multiple faces, duplicate person, distorted face, extra limbs, bad anatomy.";
+
+const IDENTITY_GUARDRAILS =
+  "Preserve the person's identity and facial features exactly. Single adult person only, one face only. No extra people. ";
 
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -16,8 +22,11 @@ async function generateOne(
   const result = await fal.subscribe(MODEL_ID, {
     input: {
       image_url: beforeUrl,
-      background_style: spec.background_style,
-      aspect_ratio: spec.aspect_ratio,
+      prompt: `${IDENTITY_GUARDRAILS}${spec.prompt} ${NEGATIVE_GUARDRAILS}`,
+      strength: 0.95,
+      num_inference_steps: 40,
+      guidance_scale: 3.5,
+      num_images: 1,
     },
     pollInterval: 2000,
   });
