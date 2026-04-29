@@ -1,23 +1,46 @@
 import { fal } from "@fal-ai/client";
 import type { VariationSpec } from "./variations";
 
-const MODEL_ID = "fal-ai/flux/dev/image-to-image";
+/**
+ * Identity-preserving generation: Flux + PuLID (`fal-ai/flux-pulid`).
+ * Commercial endpoint on FAL; keeps likeness from `reference_image_url` while the prompt
+ * drives wardrobe, background, and lighting. Prefer over plain img2img (flux/dev) for
+ * consistent faces across 12 looks. Alternatives on FAL: `fal-ai/pulid` (non-Flux),
+ * `fal-ai/ip-adapter-face-id` (research), `fal-ai/instantid` (often private / limited).
+ */
+const MODEL_ID = "fal-ai/flux-pulid";
 
-/** Flux img2img strength — lower values allow more prompt-driven changes (e.g. wardrobe) while the face prompt anchors identity. */
-const IMG_STRENGTH = 0.85;
+/** Strong ID adherence — PuLID identity loss weight (default on API is 1). */
+const ID_WEIGHT = 1;
 
-const FACE_PRESERVATION_PREFIX =
-  "professional headshot, photorealistic, sharp facial features, high detail face, photorealistic skin, exact facial likeness of the same person, studio-quality lighting on the face. ";
+const PHOTO_PREFIX =
+  "Professional corporate headshot photograph, same identity as reference face, shot by an expert portrait photographer, editorial quality, natural flattering light on face and shoulders, realistic studio or environmental lighting, sharp facial features, high detail face, photorealistic skin, catchlights in eyes, 85mm portrait lens look, authentic professional headshot, not a selfie. ";
 
-/** img2img often copies the input shirt; lead with explicit wardrobe override. */
-const OUTFIT_REPLACEMENT_PREFIX =
-  "WARDROBE OVERRIDE: discard and ignore every garment from the reference image—t-shirt, hoodie, jacket, or any original clothing must NOT appear. Fully redraw the body from the neck down in the outfit described in the next sentences only. ";
+/** Scene/outfit come from text; reference is for identity only. */
+const WARDROBE_PREFIX =
+  "Styling for this shot only — ignore any clothing in the reference image; dress the subject in the wardrobe described below. ";
 
-const NEGATIVE_GUARDRAILS =
-  "Avoid: original t-shirt, reference shirt, same shirt as input, casual tee, knit tee, hoodie from reference, studio lights, camera equipment, multiple faces, duplicate person, distorted face, extra limbs, bad anatomy, identical outfit to reference photo, unchanged wardrobe.";
-
-const IDENTITY_GUARDRAILS =
-  "Preserve face identity only (eyes, nose, mouth, face shape, skin tone, hair)—single adult, one face. No extra people. ";
+const NEGATIVE_PROMPT = [
+  "bad quality",
+  "worst quality",
+  "low resolution",
+  "blurry face",
+  "distorted face",
+  "extra limbs",
+  "multiple people",
+  "two faces",
+  "duplicate",
+  "watermark",
+  "text overlay",
+  "logo",
+  "cartoon",
+  "anime",
+  "plastic skin",
+  "studio light stand",
+  "camera visible",
+  "tripod",
+  "ring light visible",
+].join(", ");
 
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -29,14 +52,19 @@ async function generateOne(
   beforeUrl: string,
   spec: VariationSpec,
 ): Promise<string> {
+  const prompt = `${PHOTO_PREFIX}${WARDROBE_PREFIX}${spec.prompt}`;
+
   const result = await fal.subscribe(MODEL_ID, {
     input: {
-      image_url: beforeUrl,
-      prompt: `${FACE_PRESERVATION_PREFIX}${OUTFIT_REPLACEMENT_PREFIX}${IDENTITY_GUARDRAILS}${spec.prompt} ${NEGATIVE_GUARDRAILS}`,
-      strength: IMG_STRENGTH,
-      num_inference_steps: 40,
-      guidance_scale: 4.25,
-      num_images: 1,
+      prompt,
+      reference_image_url: beforeUrl,
+      image_size: spec.image_size,
+      num_inference_steps: 32,
+      guidance_scale: 4.5,
+      negative_prompt: NEGATIVE_PROMPT,
+      id_weight: ID_WEIGHT,
+      max_sequence_length: "512",
+      enable_safety_checker: true,
     },
     pollInterval: 2000,
   });
