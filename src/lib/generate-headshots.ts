@@ -7,14 +7,14 @@ const MODEL_ID = "fal-ai/flux/dev/image-to-image";
 const IMG_STRENGTH = 0.45;
 
 const FACE_PRESERVATION_PREFIX =
-  "professional headshot, photorealistic, sharp facial features, exact facial likeness of the same person, studio lighting. ";
+  "professional headshot, photorealistic, sharp facial features, high detail face, photorealistic skin, exact facial likeness of the same person, studio-quality lighting on the face. ";
 
-/** img2img often copies the input shirt; spell out that clothing must be regenerated. */
+/** img2img often copies the input shirt; lead with explicit wardrobe override. */
 const OUTFIT_REPLACEMENT_PREFIX =
-  "Replace the entire outfit from the input photo—do not keep the original shirt, t-shirt, hoodie, or jacket. Generate the NEW wardrobe described below in full view (lapels, collar, fabric visible). ";
+  "WARDROBE OVERRIDE: discard and ignore every garment from the reference image—t-shirt, hoodie, jacket, or any original clothing must NOT appear. Fully redraw the body from the neck down in the outfit described in the next sentences only. ";
 
 const NEGATIVE_GUARDRAILS =
-  "Avoid: studio lights, camera equipment, multiple faces, duplicate person, distorted face, extra limbs, bad anatomy, same clothes as input, identical outfit to reference photo.";
+  "Avoid: original t-shirt, reference shirt, same shirt as input, casual tee, knit tee, hoodie from reference, studio lights, camera equipment, multiple faces, duplicate person, distorted face, extra limbs, bad anatomy, identical outfit to reference photo, unchanged wardrobe.";
 
 const IDENTITY_GUARDRAILS =
   "Preserve face identity only (eyes, nose, mouth, face shape, skin tone, hair)—single adult, one face. No extra people. ";
