@@ -4,7 +4,7 @@ import type { VariationSpec } from "./variations";
 const MODEL_ID = "fal-ai/flux/dev/image-to-image";
 
 /** Flux img2img strength — lower values allow more prompt-driven changes (e.g. wardrobe) while the face prompt anchors identity. */
-const IMG_STRENGTH = 0.45;
+const IMG_STRENGTH = 0.85;
 
 const FACE_PRESERVATION_PREFIX =
   "professional headshot, photorealistic, sharp facial features, high detail face, photorealistic skin, exact facial likeness of the same person, studio-quality lighting on the face. ";
