@@ -47,9 +47,7 @@ async function runGenerationJob(params: {
 
     const sendResult = await sendHeadshotDeliveryEmail({
       to: customerEmail,
-      imageUrls: urls,
-      labels,
-      productLabel: PRODUCT.label,
+      sessionId,
     });
 
     await storeSet(storeKeys.order(sessionId), {

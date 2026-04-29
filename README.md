@@ -22,6 +22,12 @@ Open `http://localhost:3000`.
 - Set `STRIPE_SECRET_KEY` for Checkout ($14.99 product configured in code).
 - Without KV, uploads/orders persist in `.data/portr-store.json` locally. Use `PORT_MEMORY_STORE_ONLY=1` only if you explicitly want RAM-only storage.
 
+### Resend (ready email)
+
+- Set `RESEND_API_KEY` so customers get **“Your Portr headshots are ready”** after generation (from the Stripe webhook or `/api/order/complete` job).
+- Set `NEXT_PUBLIC_APP_URL` to your production origin (e.g. `https://portr.example.com`) so the email contains a working results link. On Vercel, `VERCEL_URL` is used if this is unset.
+- Optional: `RESEND_FROM_EMAIL` (defaults to Resend’s onboarding sender for testing).
+
 ## Getting Started
 
 First, run the development server:
