@@ -1,6 +1,6 @@
 ## Portr — AI headshots
 
-Next.js app: upload one photo, pay once, get **10** AI headshot variations (stored server-side by Stripe session). Email delivery via Resend.
+Next.js app: upload one photo, pay once, get **12** AI headshot variations (stored server-side by Stripe session).
 
 ### Run locally
 
@@ -17,10 +17,9 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-### Stripe & Resend
+### Stripe
 
 - Set `STRIPE_SECRET_KEY` for Checkout ($14.99 product configured in code).
-- Set `RESEND_API_KEY` (and optionally `RESEND_FROM_EMAIL`) for download-link emails.
 - Without KV, uploads/orders persist in `.data/portr-store.json` locally. Use `PORT_MEMORY_STORE_ONLY=1` only if you explicitly want RAM-only storage.
 
 ## Getting Started

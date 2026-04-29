@@ -18,7 +18,7 @@ export function SiteShell({
               <span className="h-2 w-2 rounded-full bg-white" />
             </span>
             <span className="text-sm font-semibold tracking-wide">
-              Portr<span className="text-white/60">.ai</span>
+              Portr
             </span>
           </Link>
           <nav className="flex items-center gap-3">
@@ -41,9 +41,18 @@ export function SiteShell({
       </header>
       <main>{children}</main>
       <footer className="border-t border-[var(--border)]">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-8 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Portr</p>
-          <p className="text-white/40">AI headshots from one photo.</p>
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
+          <p>© 2026 Portr. All rights reserved.</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-white/45">
+            <Link href="/privacy" className="hover:text-white/80">
+              Privacy Policy
+            </Link>
+            <Link href="/refund" className="hover:text-white/80">
+              Refund Policy
+            </Link>
+            <span className="hidden text-white/30 sm:inline">·</span>
+            <span className="text-white/40">AI headshots from one photo.</span>
+          </div>
         </div>
       </footer>
     </div>

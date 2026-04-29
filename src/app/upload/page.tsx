@@ -5,6 +5,19 @@ import { Button, Panel } from "@/components/ui";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const MIN_BYTES = 200 * 1024;
+
+function validateImageFile(f: File): string | null {
+  const okType = f.type === "image/jpeg" || f.type === "image/png";
+  if (!okType) {
+    return "Please choose a JPG or PNG image.";
+  }
+  if (f.size < MIN_BYTES) {
+    return "This file is too small (under 200KB). Please use a higher-quality photo.";
+  }
+  return null;
+}
+
 export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -21,6 +34,11 @@ export default function UploadPage() {
     setError(null);
     if (!file) {
       setError("Please choose a photo first.");
+      return;
+    }
+    const v = validateImageFile(file);
+    if (v) {
+      setError(v);
       return;
     }
 
@@ -75,11 +93,21 @@ export default function UploadPage() {
             <input
               className="mt-3 block w-full cursor-pointer rounded-xl border border-white/15 bg-white/5 p-3 text-sm text-white file:mr-4 file:rounded-full file:border-0 file:bg-white file:px-4 file:py-2 file:text-sm file:font-medium file:text-black hover:bg-white/8"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,.jpg,.jpeg,.png"
               disabled={loading}
               onChange={(e) => {
                 setError(null);
-                setFile(e.target.files?.[0] ?? null);
+                const next = e.target.files?.[0] ?? null;
+                if (next) {
+                  const msg = validateImageFile(next);
+                  if (msg) {
+                    setError(msg);
+                    setFile(null);
+                    e.target.value = "";
+                    return;
+                  }
+                }
+                setFile(next);
               }}
             />
 

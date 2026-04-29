@@ -23,6 +23,25 @@ export async function POST(req: Request) {
       return Response.json({ error: "Missing file" }, { status: 400 });
     }
 
+    const allowed = new Set(["image/jpeg", "image/png"]);
+    if (!allowed.has(file.type)) {
+      return Response.json(
+        { error: "Please upload a JPG or PNG image." },
+        { status: 400 },
+      );
+    }
+
+    const minBytes = 200 * 1024;
+    if (file.size < minBytes) {
+      return Response.json(
+        {
+          error:
+            "This file is too small (under 200KB). Please choose a higher-quality photo.",
+        },
+        { status: 400 },
+      );
+    }
+
     const beforeUrl = await fal.storage.upload(file);
     const uploadToken = randomUUID();
 

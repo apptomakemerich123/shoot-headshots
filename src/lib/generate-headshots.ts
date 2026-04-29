@@ -3,6 +3,12 @@ import type { VariationSpec } from "./variations";
 
 const MODEL_ID = "fal-ai/flux/dev/image-to-image";
 
+/** Flux img2img denoise strength — 0.85+ keeps closer likeness to the source photo. */
+const IMG_STRENGTH = 0.85;
+
+const FACE_PRESERVATION_PREFIX =
+  "professional headshot, photorealistic, sharp facial features, exact likeness, studio lighting. ";
+
 const NEGATIVE_GUARDRAILS =
   "Avoid: studio lights, camera equipment, multiple faces, duplicate person, distorted face, extra limbs, bad anatomy.";
 
@@ -22,8 +28,8 @@ async function generateOne(
   const result = await fal.subscribe(MODEL_ID, {
     input: {
       image_url: beforeUrl,
-      prompt: `${IDENTITY_GUARDRAILS}${spec.prompt} ${NEGATIVE_GUARDRAILS}`,
-      strength: 0.95,
+      prompt: `${FACE_PRESERVATION_PREFIX}${IDENTITY_GUARDRAILS}${spec.prompt} ${NEGATIVE_GUARDRAILS}`,
+      strength: IMG_STRENGTH,
       num_inference_steps: 40,
       guidance_scale: 3.5,
       num_images: 1,

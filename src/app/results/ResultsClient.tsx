@@ -22,6 +22,7 @@ export default function ResultsClient() {
   const search = useSearchParams();
   const sessionId = search.get("session_id");
   const tFromUrl = search.get("t");
+  const startedAt = useState(() => Date.now())[0];
 
   /** Resolved from `?t=` or sessionStorage so checkout always has the token after navigation. */
   const [uploadToken, setUploadToken] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export default function ResultsClient() {
 
   const [zipLoading, setZipLoading] = useState(false);
   const [zipErr, setZipErr] = useState<string | null>(null);
+  const [genProgress, setGenProgress] = useState(0);
 
   // Merge URL query + sessionStorage (fixes lost ?t= and matches server-side file/KV store).
   useEffect(() => {
@@ -88,6 +90,23 @@ export default function ResultsClient() {
       cancelled = true;
     };
   }, [uploadToken, sessionId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const generating =
+      (phase === "finalizing" || phase === "polling") &&
+      order?.status !== "ready" &&
+      order?.status !== "failed";
+    if (!generating) {
+      if (order?.status === "ready") setGenProgress(100);
+      return;
+    }
+    setGenProgress(6);
+    const id = setInterval(() => {
+      setGenProgress((p) => (p >= 94 ? p : p + 1.25));
+    }, 800);
+    return () => clearInterval(id);
+  }, [sessionId, phase, order?.status]);
 
   /** Stripe return: load order from server first so refresh always shows images when ready. */
   useEffect(() => {
@@ -253,6 +272,11 @@ export default function ResultsClient() {
       order?.status !== "ready" &&
       order?.status !== "failed";
 
+    const tookTooLong =
+      (phase === "hydrating" || phase === "finalizing" || phase === "polling") &&
+      Date.now() - startedAt > 4 * 60 * 1000 &&
+      order?.status !== "ready";
+
     return (
       <SiteShell ctaHref="/upload" ctaLabel="New upload">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
@@ -265,32 +289,63 @@ export default function ResultsClient() {
           </p>
 
           {orderErr ? (
-            <p className="mt-4 text-sm text-red-300">{orderErr}</p>
+            <Panel className="mt-6 p-6">
+              <p className="text-sm text-white/80">
+                Something went wrong. Email getportr@gmail.com and we&apos;ll fix
+                it or give you a full refund.
+              </p>
+            </Panel>
           ) : null}
 
           {showSpinner ? (
-            <Panel className="mt-8 flex items-center gap-4 p-6">
-              <div className="relative h-10 w-10 shrink-0">
-                <div className="absolute inset-0 animate-spin rounded-full border border-white/15 border-t-white/80" />
+            <Panel className="mt-8 p-6">
+              <div className="flex items-start gap-4">
+                <div className="relative mt-0.5 h-10 w-10 shrink-0">
+                  <div className="absolute inset-0 animate-spin rounded-full border border-white/15 border-t-white/80" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-white">
+                    {phase === "hydrating"
+                      ? "Loading your order…"
+                      : phase === "finalizing"
+                        ? "Confirming payment…"
+                        : "Generating your headshots… this takes 2-3 minutes"}
+                  </p>
+                  <p className="mt-1 text-sm text-white/55">
+                    {phase === "polling"
+                      ? `Creating ${PRODUCT.count} variations — different backgrounds and lighting.`
+                      : "Almost there."}
+                  </p>
+                  {phase === "polling" || phase === "finalizing" ? (
+                    <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-white/80 transition-[width] duration-300 ease-out"
+                        style={{
+                          width: `${Math.min(100, Math.round(genProgress))}%`,
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-white">
-                  {phase === "hydrating"
-                    ? "Loading your order…"
-                    : phase === "finalizing"
-                      ? "Confirming payment…"
-                      : "Generating 10 headshots…"}
-                </p>
-                <p className="text-sm text-white/55">
-                  Different backgrounds and lighting. We’ll email you links too.
-                </p>
-              </div>
+            </Panel>
+          ) : null}
+
+          {tookTooLong ? (
+            <Panel className="mt-6 p-6">
+              <p className="text-sm text-white/80">
+                Something went wrong. Email getportr@gmail.com and we&apos;ll fix
+                it or give you a full refund.
+              </p>
             </Panel>
           ) : null}
 
           {order?.status === "failed" ? (
             <Panel className="mt-8 p-6">
-              <p className="text-red-300">{order.error ?? "Generation failed"}</p>
+              <p className="text-sm text-white/80">
+                Something went wrong. Email getportr@gmail.com and we&apos;ll fix
+                it or give you a full refund.
+              </p>
               <div className="mt-4">
                 <Button href="/upload">Try a new upload</Button>
               </div>
@@ -303,12 +358,7 @@ export default function ResultsClient() {
             <>
               <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-white/70">
-                  {order.customerEmail ? (
-                    <>
-                      Also emailed to{" "}
-                      <span className="text-white">{order.customerEmail}</span>.
-                    </>
-                  ) : null}
+                  {/* no email delivery messaging */}
                 </p>
                 <Button
                   type="button"
@@ -338,7 +388,7 @@ export default function ResultsClient() {
               ) : null}
 
               <p className="mt-8 text-xs font-medium tracking-[0.18em] text-white/55">
-                ALL 10 VARIATIONS
+                ALL {PRODUCT.count} VARIATIONS
               </p>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 {order.imageUrls.map((url, i) => (
@@ -459,7 +509,7 @@ export default function ResultsClient() {
           Nothing to show
         </h1>
         <p className="mt-2 text-sm text-white/65">
-          Upload a photo first, or open your results link from Stripe or email.
+          Upload a photo first, or open your results link from Stripe.
         </p>
         <div className="mt-8">
           <Button href="/upload">Go to upload</Button>

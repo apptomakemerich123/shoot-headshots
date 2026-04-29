@@ -48,7 +48,7 @@ export async function POST(req: Request) {
           product_data: {
             name: PRODUCT.label,
             description:
-              "10 AI headshot variations — multiple backgrounds and lighting",
+              "12 AI headshot variations — multiple backgrounds and lighting",
           },
           unit_amount: PRODUCT.cents,
         },

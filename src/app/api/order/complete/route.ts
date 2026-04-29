@@ -9,7 +9,7 @@ import { buildVariationList } from "@/lib/variations";
 
 export const runtime = "nodejs";
 
-/** Generation runs after the HTTP response (via `after`) so the client isn’t blocked on ~10 Fal calls. */
+/** Generation runs after the HTTP response (via `after`) so the client isn’t blocked on multiple Fal calls. */
 export const maxDuration = 300;
 
 function stripeSecret() {

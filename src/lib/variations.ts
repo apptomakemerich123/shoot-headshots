@@ -1,6 +1,10 @@
-/** 10 distinct looks: prompt-controlled headshot variations. */
-export type BackgroundStyle = "professional" | "corporate" | "clean" | "gradient";
-/** Matches fal-ai/image-apps-v2/headshot-photo AspectRatio enum */
+/** 12 distinct looks: varied backgrounds + clothing for flux img2img prompts. */
+export type BackgroundStyle =
+  | "professional"
+  | "corporate"
+  | "clean"
+  | "gradient";
+/** Legacy fields kept for typing consistency */
 export type Ratio = "1:1" | "3:4" | "9:16" | "4:3" | "16:9";
 
 export type ImageSize =
@@ -14,16 +18,9 @@ export type ImageSize =
 
 export type VariationSpec = {
   label: string;
-  /**
-   * Legacy settings for `fal-ai/image-apps-v2/headshot-photo`.
-   * Even if we later switch models again, keeping these preserves the
-   * original 10 variation framing/background intent.
-   */
   background_style: BackgroundStyle;
   aspect_ratio: { ratio: Ratio };
-  /** Controls output dimensions for the edit model. */
   image_size: ImageSize;
-  /** Variation-specific scene + background + lighting direction. */
   prompt: string;
 };
 
@@ -40,7 +37,7 @@ const NEGATIVE_GUARDRAILS = [
   "c-stand",
   "rigging",
   "equipment in background",
-  "photo studio",
+  "photo studio equipment visible",
   "backdrop stand",
   "multiple people",
   "two people",
@@ -61,95 +58,105 @@ const NEGATIVE_GUARDRAILS = [
   "blurry",
 ].join(", ");
 
-/**
- * Shared guardrails used for all variations.
- *
- * We keep this in the spec so the API call can pass it as `negative_prompt`
- * without duplicating strings across the codebase.
- */
 export const DEFAULT_NEGATIVE_PROMPT = NEGATIVE_GUARDRAILS;
 
-/** 10 distinct looks: backgrounds + framing (headshot / square / wide / tall). */
+/** Exactly 12 presets — each differs by background + wardrobe + framing hints. */
 const BASE_PRESETS: VariationSpec[] = [
   {
-    label: "Bright studio · soft key",
+    label: "Gray studio · navy suit",
     background_style: "professional",
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "Edit this into a clean professional headshot of the SAME person. Preserve identity and facial features precisely (same face shape, eyes, eyebrows, nose, lips, skin tone, hairstyle, hairline). Single adult person only, one face only. Head-and-shoulders framing, looking at camera, natural skin texture, sharp eyes, realistic proportions. Background: solid warm white or very light beige seamless background, smooth and clean. Lighting: soft flattering key light look with gentle falloff; no visible studio gear. Clothing: keep the original outfit unless it is inappropriate; otherwise keep it simple and professional. No text, no logos.",
+      "Same person, exact likeness. Head-and-shoulders professional portrait, looking at camera. Wardrobe: tailored navy suit jacket, white dress shirt, subtle tie optional. Background: classic neutral gray seamless studio wall, smooth and even. Soft flattering portrait lighting on face, clean separation from background. Single person only, one face. No logos.",
   },
   {
-    label: "Neutral grey · balanced",
-    background_style: "corporate",
-    aspect_ratio: { ratio: "3:4" },
-    image_size: { width: 1024, height: 1365 },
-    prompt:
-      "Create a corporate-style headshot of the SAME person with high facial similarity. Single adult person only, one face only, centered, head-and-shoulders, looking at camera. Background: solid neutral medium grey (smooth, even). Lighting: balanced natural look, even exposure, subtle shadow under jawline, no harsh contrast. Keep hairstyle consistent and realistic. No text, no logos.",
-  },
-  {
-    label: "High-key clean · crisp",
+    label: "White seamless · dark blazer",
     background_style: "clean",
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "Transform into a high-key, crisp professional headshot of the SAME person. Preserve facial features exactly; do not change age, gender, ethnicity, or distinctive marks. Single person only, one face only. Background: pure solid white (#FFFFFF) with clean separation around hair; no gradients, no props. Lighting: bright and clean, minimal shadows, natural skin detail (not plastic). No text, no logos.",
+      "Same person, exact likeness. Head-and-shoulders, bright professional headshot. Wardrobe: charcoal or black blazer over light shirt, open collar business professional. Background: pure white seamless, high-key clean edge around hair. Even soft lighting, crisp eyes. Single person only. No logos.",
   },
   {
-    label: "Ambient gradient · depth",
+    label: "Charcoal backdrop · business casual",
+    background_style: "professional",
+    aspect_ratio: { ratio: "3:4" },
+    image_size: { width: 1024, height: 1365 },
+    prompt:
+      "Same person, exact likeness. Upper chest and shoulders visible. Wardrobe: business casual — oxford shirt, no tie, relaxed but polished. Background: dark charcoal or deep graphite seamless backdrop, subtle rim separation on shoulders. Moody but professional. Single person only. No logos.",
+  },
+  {
+    label: "Outdoor blur · blazer",
     background_style: "gradient",
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "Edit into a modern professional headshot of the SAME person with strong identity preservation. Single person only, one face only, head-and-shoulders, looking at camera. Background: subtle studio-style gradient wall (deep navy to charcoal, very soft blur), clean and uncluttered. Lighting: gentle dimensional lighting with soft shadow, natural catchlights, realistic skin texture. No text, no logos.",
+      "Same person, exact likeness. Outdoor-inspired professional portrait with softly blurred trees or park bokeh behind subject; no other people. Wardrobe: navy blazer, light shirt. Natural daylight feel, flattering skin tones. Single person only. No logos.",
   },
   {
-    label: "Studio · square crop",
-    background_style: "professional",
-    aspect_ratio: { ratio: "1:1" },
-    image_size: { width: 1024, height: 1024 },
-    prompt:
-      "Create a square-crop professional headshot of the SAME person. Single adult person only, one face only, centered composition, head-and-shoulders. Background: solid muted blue-grey seamless, smooth and clean. Lighting: soft and even, natural color, no harsh shadows. Keep facial features and hairstyle closely matching the reference. No text, no logos.",
-  },
-  {
-    label: "Soft wrap light · portrait",
+    label: "Office bokeh · charcoal suit",
     background_style: "corporate",
-    aspect_ratio: { ratio: "9:16" },
-    image_size: { width: 1024, height: 1820 },
-    prompt:
-      "Create a tall portrait professional photo of the SAME person with very high facial similarity. Single person only, one face only. Composition: upper torso visible, relaxed shoulders, looking at camera. Background: blurred modern office interior (bokeh), neutral colors, no people, no screens showing faces, no posters. Lighting: soft wrap-around natural window-light look. No text, no logos.",
-  },
-  {
-    label: "Even fill · environmental",
-    background_style: "clean",
     aspect_ratio: { ratio: "4:3" },
     image_size: { width: 1365, height: 1024 },
     prompt:
-      "Edit into an environmental professional headshot of the SAME person. Single person only, one face only. Composition: head-and-shoulders with slight environment context. Background: clean outdoor setting with soft blurred greenery (park) or urban background blur; no other people; no signs with faces. Lighting: evenly lit, natural daylight, flattering and realistic. Preserve facial features and hairstyle faithfully. No text, no logos.",
+      "Same person, exact likeness. Corporate headshot with blurred modern office interior behind (glass, soft neutral tones); no screens with faces, no coworkers. Wardrobe: charcoal suit, white shirt. Professional executive look. Single person only. No logos.",
   },
   {
-    label: "Rim-lit feel · wide",
+    label: "Light gray · khakis smart casual",
+    background_style: "corporate",
+    aspect_ratio: { ratio: "3:4" },
+    image_size: { width: 1024, height: 1365 },
+    prompt:
+      "Same person, exact likeness. Smart business casual: tucked shirt with belt, optional lightweight sweater or vest; khaki or neutral chinos implied at crop edge. Background: soft light gray seamless. Friendly approachable executive portrait. Single person only. No logos.",
+  },
+  {
+    label: "Navy gradient wall · tie look",
+    background_style: "gradient",
+    aspect_ratio: { ratio: "3:4" },
+    image_size: { width: 1024, height: 1365 },
+    prompt:
+      "Same person, exact likeness. Traditional corporate headshot. Wardrobe: white shirt with conservative tie, navy or gray suit jacket. Background: subtle navy-to-midnight gradient wall, still clean and minimal. Confident neutral expression. Single person only. No logos.",
+  },
+  {
+    label: "High-key white · black sweater",
+    background_style: "clean",
+    aspect_ratio: { ratio: "1:1" },
+    image_size: { width: 1024, height: 1024 },
+    prompt:
+      "Same person, exact likeness. Square crop headshot. Wardrobe: fine-gauge black or charcoal crewneck sweater over collared shirt hint — tech / creative professional. Background: bright white or very light gray, airy. Soft wrap lighting. Single person only. No logos.",
+  },
+  {
+    label: "Warm beige studio · tan blazer",
+    background_style: "professional",
+    aspect_ratio: { ratio: "3:4" },
+    image_size: { width: 1024, height: 1365 },
+    prompt:
+      "Same person, exact likeness. Warm approachable executive portrait. Wardrobe: tan or camel blazer, cream shirt. Background: warm beige or taupe seamless. Soft golden-neutral light, realistic skin texture. Single person only. No logos.",
+  },
+  {
+    label: "Urban outdoor blur · gray suit",
     background_style: "gradient",
     aspect_ratio: { ratio: "16:9" },
     image_size: { width: 1820, height: 1024 },
     prompt:
-      "Create a wide-format professional portrait of the SAME person. Single person only, one face only. Composition: subject on rule-of-thirds, head-and-shoulders, looking at camera. Background: clean blurred office or solid dark charcoal with subtle gradient; uncluttered. Lighting: subtle rim-light feel for separation (no visible equipment), natural skin texture, realistic shadows. Keep identity and facial features closely matched. No text, no logos.",
+      "Same person, exact likeness. Wide composition, head-and-shoulders on thirds. Wardrobe: medium gray suit, white shirt. Background: softly blurred city street or buildings — abstract bokeh only, no readable signs or people. Modern professional. Single person only. No logos.",
   },
   {
-    label: "Corporate headshot · classic",
+    label: "Corner office light · pinstripe",
     background_style: "corporate",
-    aspect_ratio: { ratio: "1:1" },
-    image_size: { width: 1024, height: 1024 },
-    prompt:
-      "Make a classic corporate headshot of the SAME person with strict identity preservation. Single adult person only, one face only, centered, head-and-shoulders, looking at camera, neutral professional expression. Background: solid light grey-blue, smooth and clean. Lighting: classic soft portrait lighting, even exposure, no dramatic effects. No text, no logos.",
-  },
-  {
-    label: "Minimal edge light · tall",
-    background_style: "clean",
     aspect_ratio: { ratio: "9:16" },
     image_size: { width: 1024, height: 1820 },
     prompt:
-      "Create a tall minimal professional portrait of the SAME person. Single person only, one face only. Background: solid pale cool grey or blurred office wall, clean and uncluttered. Lighting: minimal edge light for separation, otherwise soft and natural. Preserve facial features closely; avoid beautification that changes face shape. No text, no logos.",
+      "Same person, exact likeness. Tall portrait framing. Wardrobe: subtle pinstripe or chalk-stripe suit, power-but-classic. Background: bright blurred executive office with window light bokeh; no other faces. Single person only. No logos.",
+  },
+  {
+    label: "Skyline soft blur · dress shirt",
+    background_style: "clean",
+    aspect_ratio: { ratio: "3:4" },
+    image_size: { width: 1024, height: 1365 },
+    prompt:
+      "Same person, exact likeness. Relaxed professional without jacket: crisp white or light blue dress shirt sleeves neatly rolled or cuff visible at crop. Background: very soft out-of-focus skyline or horizon glow — still minimal and not cluttered. Approachable expert vibe. Single person only. No logos.",
   },
 ];
 
