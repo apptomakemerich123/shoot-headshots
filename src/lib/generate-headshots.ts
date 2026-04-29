@@ -3,17 +3,21 @@ import type { VariationSpec } from "./variations";
 
 const MODEL_ID = "fal-ai/flux/dev/image-to-image";
 
-/** Flux img2img denoise strength — 0.85+ keeps closer likeness to the source photo. */
-const IMG_STRENGTH = 0.85;
+/** Flux img2img strength — lower values allow more prompt-driven changes (e.g. wardrobe) while the face prompt anchors identity. */
+const IMG_STRENGTH = 0.45;
 
 const FACE_PRESERVATION_PREFIX =
-  "professional headshot, photorealistic, sharp facial features, exact likeness, studio lighting. ";
+  "professional headshot, photorealistic, sharp facial features, exact facial likeness of the same person, studio lighting. ";
+
+/** img2img often copies the input shirt; spell out that clothing must be regenerated. */
+const OUTFIT_REPLACEMENT_PREFIX =
+  "Replace the entire outfit from the input photo—do not keep the original shirt, t-shirt, hoodie, or jacket. Generate the NEW wardrobe described below in full view (lapels, collar, fabric visible). ";
 
 const NEGATIVE_GUARDRAILS =
-  "Avoid: studio lights, camera equipment, multiple faces, duplicate person, distorted face, extra limbs, bad anatomy.";
+  "Avoid: studio lights, camera equipment, multiple faces, duplicate person, distorted face, extra limbs, bad anatomy, same clothes as input, identical outfit to reference photo.";
 
 const IDENTITY_GUARDRAILS =
-  "Preserve the person's identity and facial features exactly. Single adult person only, one face only. No extra people. ";
+  "Preserve face identity only (eyes, nose, mouth, face shape, skin tone, hair)—single adult, one face. No extra people. ";
 
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -28,10 +32,10 @@ async function generateOne(
   const result = await fal.subscribe(MODEL_ID, {
     input: {
       image_url: beforeUrl,
-      prompt: `${FACE_PRESERVATION_PREFIX}${IDENTITY_GUARDRAILS}${spec.prompt} ${NEGATIVE_GUARDRAILS}`,
+      prompt: `${FACE_PRESERVATION_PREFIX}${OUTFIT_REPLACEMENT_PREFIX}${IDENTITY_GUARDRAILS}${spec.prompt} ${NEGATIVE_GUARDRAILS}`,
       strength: IMG_STRENGTH,
       num_inference_steps: 40,
-      guidance_scale: 3.5,
+      guidance_scale: 4.25,
       num_images: 1,
     },
     pollInterval: 2000,
