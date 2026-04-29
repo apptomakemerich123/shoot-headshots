@@ -88,7 +88,6 @@ export async function POST(req: Request) {
   }
 
   if (event.type !== "checkout.session.completed") {
-    // Acknowledge other events so Stripe doesn't retry.
     return Response.json({ received: true });
   }
 
@@ -98,7 +97,6 @@ export async function POST(req: Request) {
     return Response.json({ received: true });
   }
 
-  // If we've already started or completed, do nothing (Stripe can retry webhooks).
   const existing = await storeGet<OrderRecord>(storeKeys.order(sessionId));
   if (existing?.status === "ready" || existing?.status === "processing") {
     return Response.json({ received: true, status: existing.status });
@@ -143,7 +141,6 @@ export async function POST(req: Request) {
     updatedAt: Date.now(),
   } satisfies OrderRecord);
 
-  // Kick off generation outside the webhook response.
   after(async () => {
     await runGenerationJob({
       sessionId,
@@ -154,4 +151,3 @@ export async function POST(req: Request) {
 
   return Response.json({ received: true, status: "processing" as const });
 }
-

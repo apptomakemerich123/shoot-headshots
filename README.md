@@ -24,9 +24,9 @@ Open `http://localhost:3000`.
 
 ### Resend (ready email)
 
-- Set `RESEND_API_KEY` so customers get **“Your Portr headshots are ready”** after generation (from the Stripe webhook or `/api/order/complete` job).
-- Set `NEXT_PUBLIC_APP_URL` to your production origin (e.g. `https://portr.example.com`) so the email contains a working results link. On Vercel, `VERCEL_URL` is used if this is unset.
-- Optional: `RESEND_FROM_EMAIL` (defaults to Resend’s onboarding sender for testing).
+- Set `RESEND_API_KEY` so customers get the ready email after generation (Stripe **`POST /api/webhook`** or `/api/order/complete` job).
+- Ready emails link to **`https://www.getportr.com/results/{session_id}`** by default. Override with `EMAIL_RESULTS_ORIGIN` (e.g. `http://localhost:3000`) for local testing.
+- Stripe Dashboard: endpoint URL **`https://www.getportr.com/api/webhook`** (or your deploy URL + `/api/webhook`), event **`checkout.session.completed`**.
 
 ## Getting Started
 
