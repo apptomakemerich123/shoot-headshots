@@ -63,12 +63,12 @@ export const DEFAULT_NEGATIVE_PROMPT = NEGATIVE_GUARDRAILS;
 /** Exactly 12 presets — each differs by background + wardrobe + framing hints. */
 const BASE_PRESETS: VariationSpec[] = [
   {
-    label: "Gray studio · navy suit",
+    label: "Gray studio · navy tailored jacket",
     background_style: "professional",
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a tailored navy suit jacket with notch lapels, crisp white dress shirt, optional navy silk tie. The person is dressed ONLY in this suit—wearing this outfit, not the reference shirt. Replace all clothing with: navy suit, white shirt, visible lapels and woven suit fabric. SECONDARY — pose: head-and-shoulders, looking at camera. BACKGROUND: classic neutral gray seamless studio wall, smooth and even; soft flattering portrait light. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a tailored navy jacket with notch lapels, crisp white or pale tailored button-up or professional blouse, elegant open collar. The person is dressed ONLY in this outfit—wearing tailored separates and woven fabric, not the reference top. Replace all clothing with visible lapels and structured jacket; no necktie. SECONDARY — pose: head-and-shoulders, looking at camera. BACKGROUND: classic neutral gray seamless studio wall, smooth and even; soft flattering portrait light. No logos.",
   },
   {
     label: "White seamless · dark blazer",
@@ -76,7 +76,7 @@ const BASE_PRESETS: VariationSpec[] = [
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a charcoal or black structured blazer over a light blue or white dress shirt, top button open. The person is dressed ONLY in this blazer and shirt—wearing this outfit; replace all clothing with blazer layers, not a tee or hoodie. SECONDARY — pose: head-and-shoulders, bright professional headshot. BACKGROUND: pure white seamless, high-key; even soft lighting. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a charcoal or black structured blazer over a light blue or white tailored shirt or professional blouse, open collar. The person is dressed ONLY in this blazer and top—replace all clothing with blazer layers, not a tee or hoodie. SECONDARY — pose: head-and-shoulders, bright professional headshot. BACKGROUND: pure white seamless, high-key; even soft lighting. No logos.",
   },
   {
     label: "Charcoal backdrop · business casual",
@@ -84,7 +84,7 @@ const BASE_PRESETS: VariationSpec[] = [
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a tucked light oxford or chambray dress shirt, no tie, leather belt at waist if in frame. The person is dressed ONLY in this woven business shirt—replace all clothing with dress-shirt fabric, not a knit t-shirt. SECONDARY — framing: upper chest and shoulders. BACKGROUND: dark charcoal seamless, subtle rim on shoulders; moody professional. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a tucked light oxford or chambray woven button-up or smart casual blouse, leather belt at waist if in frame. The person is dressed ONLY in this business-casual top—replace all clothing with woven fabric, not a knit t-shirt. SECONDARY — framing: upper chest and shoulders. BACKGROUND: dark charcoal seamless, subtle rim on shoulders; moody professional. No logos.",
   },
   {
     label: "Outdoor blur · blazer",
@@ -92,39 +92,39 @@ const BASE_PRESETS: VariationSpec[] = [
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a navy blue blazer over white or pale blue dress shirt, blazer buttoned or one button open. The person is wearing ONLY this blazer ensemble—replace all clothing with jacket weave and collar, not a hoodie or tee. SECONDARY — setting: outdoor-inspired portrait. BACKGROUND: softly blurred trees or park bokeh, no other people; natural daylight look. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a navy blue blazer over white or pale blue tailored shirt or professional blouse, blazer buttoned or one button open. The person is wearing ONLY this blazer ensemble—replace all clothing with jacket weave and collar, not a hoodie or tee. SECONDARY — setting: outdoor-inspired portrait. BACKGROUND: softly blurred trees or park bokeh, no other people; natural daylight look. No logos.",
   },
   {
-    label: "Office bokeh · charcoal suit",
+    label: "Office bokeh · charcoal tailored jacket",
     background_style: "corporate",
     aspect_ratio: { ratio: "4:3" },
     image_size: { width: 1365, height: 1024 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a charcoal two-piece suit and white spread-collar dress shirt, no tie. The person is dressed ONLY in this suit—wearing charcoal suit and shirt; replace all clothing with suit lapels and placket visible. SECONDARY — pose: corporate headshot. BACKGROUND: blurred modern office (glass, neutrals); no screens with faces. Executive look. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a charcoal tailored jacket and matching tailored trousers or skirt visible only if in frame, plus white spread-collar tailored shirt or professional blouse, open collar, no necktie. The person is dressed ONLY in this polished outfit—replace all clothing with lapels and placket visible. SECONDARY — pose: corporate headshot. BACKGROUND: blurred modern office (glass, neutrals); no screens with faces. Executive look. No logos.",
   },
   {
-    label: "Light gray · khakis smart casual",
+    label: "Light gray · smart casual separates",
     background_style: "corporate",
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with tucked white or pale gray dress shirt, brown leather belt, optional thin heather gray v-neck sweater, khaki chinos if lower frame visible. The person is wearing ONLY this smart-casual outfit—replace all clothing with belt, shirt, and chinos, not the reference top. SECONDARY — tone: friendly executive portrait. BACKGROUND: soft light gray seamless. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with tucked white or pale gray tailored shirt or professional blouse, brown leather belt, optional thin heather gray v-neck pullover, tailored neutral chinos or trousers if lower frame visible. The person is wearing ONLY this smart-casual outfit—replace all clothing with belt, top, and bottoms, not the reference garment. SECONDARY — tone: friendly executive portrait. BACKGROUND: soft light gray seamless. No logos.",
   },
   {
-    label: "Navy gradient wall · tie look",
+    label: "Navy gradient · formal open collar",
     background_style: "gradient",
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with navy or charcoal suit jacket, crisp white shirt, conservative silk tie in burgundy or navy. The person is dressed ONLY in suit, shirt, and tie—wearing this formal outfit; replace all clothing with tie knot and jacket lapels clearly visible. SECONDARY — expression: confident neutral. BACKGROUND: subtle navy-to-midnight gradient wall. Traditional corporate headshot. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with navy or charcoal structured jacket, crisp white or pale tailored shirt or elegant professional blouse, refined open collar and structured lapels, no necktie. The person is dressed ONLY in this formal jacket look—replace all clothing with jacket and top clearly visible. SECONDARY — expression: confident neutral. BACKGROUND: subtle navy-to-midnight gradient wall. Polished corporate headshot. No logos.",
   },
   {
-    label: "High-key white · black sweater",
+    label: "High-key white · layered sweater",
     background_style: "clean",
     aspect_ratio: { ratio: "1:1" },
     image_size: { width: 1024, height: 1024 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a fine-gauge black or charcoal crewneck sweater layered over a white dress shirt with collar and cuffs peeking out. The person is wearing ONLY this sweater-and-shirt combo—replace all clothing with knit texture and layered collar, not a plain tee. SECONDARY — crop: square headshot. BACKGROUND: bright white or very light gray; soft wrap light. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a fine-gauge black or charcoal crewneck sweater layered over a white collared tailored shirt or blouse with collar and cuffs peeking out. The person is wearing ONLY this layered knit look—replace all clothing with knit texture and layered collar, not a plain tee. SECONDARY — crop: square headshot. BACKGROUND: bright white or very light gray; soft wrap light. No logos.",
   },
   {
     label: "Warm beige studio · tan blazer",
@@ -132,31 +132,31 @@ const BASE_PRESETS: VariationSpec[] = [
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a tan or camel hair blazer over cream or ivory dress shirt, no tie. The person is dressed ONLY in this blazer—wearing tan blazer and dress shirt; replace all clothing with blazer texture and collar visible. SECONDARY — mood: warm approachable executive. BACKGROUND: warm beige or taupe seamless; soft golden-neutral light. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a tan or camel hair blazer over cream or ivory tailored shirt or professional blouse, open collar. The person is dressed ONLY in this blazer ensemble—replace all clothing with blazer texture and collar visible. SECONDARY — mood: warm approachable executive. BACKGROUND: warm beige or taupe seamless; soft golden-neutral light. No logos.",
   },
   {
-    label: "Urban outdoor blur · gray suit",
+    label: "Urban outdoor blur · gray tailored jacket",
     background_style: "gradient",
     aspect_ratio: { ratio: "16:9" },
     image_size: { width: 1820, height: 1024 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a medium gray suit, white dress shirt, optional pocket square. The person is wearing ONLY this gray suit—replace all clothing with suit fabric and lapels fully rendered. SECONDARY — composition: wide head-and-shoulders. BACKGROUND: softly blurred city bokeh, no signs or people; modern professional. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with a medium gray tailored jacket, white or pale tailored shirt or professional blouse, elegant open collar. The person is wearing ONLY this gray tailored look—replace all clothing with jacket fabric and lapels fully rendered. SECONDARY — composition: wide head-and-shoulders. BACKGROUND: softly blurred city bokeh, no signs or people; modern professional. No logos.",
   },
   {
-    label: "Corner office light · pinstripe",
+    label: "Corner office · fine-stripe jacket",
     background_style: "corporate",
     aspect_ratio: { ratio: "9:16" },
     image_size: { width: 1024, height: 1820 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with navy pinstripe or chalk-stripe suit, white shirt, silk tie; stripe pattern subtle but visible on jacket. The person is dressed ONLY in pinstripe suit and tie—replace all clothing with tailored suit, not casual wear. SECONDARY — framing: tall portrait. BACKGROUND: bright blurred executive office, window bokeh; no other faces. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with navy or charcoal fine-stripe or chalk-stripe tailored jacket, white or pale tailored shirt or professional blouse, open collar; stripe pattern subtle on jacket, no necktie. The person is dressed ONLY in this structured jacket outfit—replace all clothing with tailored separates, not casual wear. SECONDARY — framing: tall portrait. BACKGROUND: bright blurred executive office, window bokeh; no other faces. No logos.",
   },
   {
-    label: "Skyline soft blur · dress shirt",
+    label: "Skyline soft blur · relaxed shirt",
     background_style: "clean",
     aspect_ratio: { ratio: "3:4" },
     image_size: { width: 1024, height: 1365 },
     prompt:
-      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with ONLY a crisp white or light blue dress shirt—no jacket—sleeves neatly rolled once or twice, cuff placket visible, top button may be open. The person is dressed ONLY in this woven dress shirt—replace all clothing with oxford fabric, absolutely not a t-shirt or knit tee. SECONDARY — mood: relaxed professional. BACKGROUND: very soft skyline glow blur, minimal. No logos.",
+      "PRIMARY — CLOTHING: Ignore original clothing completely; replace ALL garments with ONLY a crisp white or light blue tailored button-up or professional blouse—no jacket—sleeves neatly rolled once or twice, cuff placket visible, top button may be open. The person is dressed ONLY in this woven top—replace all clothing with tailored woven fabric, absolutely not a t-shirt or knit tee. SECONDARY — mood: relaxed professional. BACKGROUND: very soft skyline glow blur, minimal. No logos.",
   },
 ];
 

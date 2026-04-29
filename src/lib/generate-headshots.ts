@@ -14,15 +14,15 @@ import type { VariationSpec } from "./variations";
  */
 const MODEL_ID = "fal-ai/flux-pulid";
 
-/** Strong ID adherence — PuLID identity loss weight (default on API is 1). */
-const ID_WEIGHT = 1;
+/** Strong ID adherence — PuLID identity loss; higher preserves face and hair more strongly. */
+const ID_WEIGHT = 1.5;
 
 const PHOTO_PREFIX =
   "Professional corporate headshot photograph of one adult person, same identity as the reference face, looking at the camera, natural flattering light on face and shoulders, sharp facial details, catchlights in eyes, authentic professional portrait, not a selfie. ";
 
 /** Applied to every variation prompt for camera / texture realism. */
 const PHOTO_REALISM_BLOCK =
-  "photorealistic, shot on Sony A7R, 85mm f/1.4 lens, natural skin texture, subsurface scattering, real photograph, not AI generated, DSLR quality, professional photographer. ";
+  "photorealistic, shot on Sony A7R, 85mm f/1.4 lens, natural skin texture, subsurface scattering, real photograph, not AI generated, DSLR quality, professional photographer, preserve exact hair color, hair length, and hair style from reference photo. ";
 
 /** Scene/outfit come from text; reference is for identity only. */
 const WARDROBE_PREFIX =
