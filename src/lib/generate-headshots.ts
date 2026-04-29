@@ -7,6 +7,10 @@ import type { VariationSpec } from "./variations";
  * drives wardrobe, background, and lighting. Prefer over plain img2img (flux/dev) for
  * consistent faces across 12 looks. Alternatives on FAL: `fal-ai/pulid` (non-Flux),
  * `fal-ai/ip-adapter-face-id` (research), `fal-ai/instantid` (often private / limited).
+ *
+ * Gender: the public FAL input schema for `fal-ai/flux-pulid` has no `gender` field
+ * (see model API docs). Prompts stay gender-neutral ("person"); a `gender` value on the
+ * order can be threaded into prompts later if needed.
  */
 const MODEL_ID = "fal-ai/flux-pulid";
 
@@ -14,11 +18,15 @@ const MODEL_ID = "fal-ai/flux-pulid";
 const ID_WEIGHT = 1;
 
 const PHOTO_PREFIX =
-  "Professional corporate headshot photograph, same identity as reference face, shot by an expert portrait photographer, editorial quality, natural flattering light on face and shoulders, realistic studio or environmental lighting, sharp facial features, high detail face, photorealistic skin, catchlights in eyes, 85mm portrait lens look, authentic professional headshot, not a selfie. ";
+  "Professional corporate headshot photograph of one adult person, same identity as the reference face, looking at the camera, natural flattering light on face and shoulders, sharp facial details, catchlights in eyes, authentic professional portrait, not a selfie. ";
+
+/** Applied to every variation prompt for camera / texture realism. */
+const PHOTO_REALISM_BLOCK =
+  "photorealistic, shot on Sony A7R, 85mm f/1.4 lens, natural skin texture, subsurface scattering, real photograph, not AI generated, DSLR quality, professional photographer. ";
 
 /** Scene/outfit come from text; reference is for identity only. */
 const WARDROBE_PREFIX =
-  "Styling for this shot only — ignore any clothing in the reference image; dress the subject in the wardrobe described below. ";
+  "Styling for this shot only — ignore any clothing in the reference image; dress the person in the wardrobe described below. ";
 
 const NEGATIVE_PROMPT = [
   "bad quality",
@@ -52,7 +60,7 @@ async function generateOne(
   beforeUrl: string,
   spec: VariationSpec,
 ): Promise<string> {
-  const prompt = `${PHOTO_PREFIX}${WARDROBE_PREFIX}${spec.prompt}`;
+  const prompt = `${PHOTO_PREFIX}${PHOTO_REALISM_BLOCK}${WARDROBE_PREFIX}${spec.prompt}`;
 
   const result = await fal.subscribe(MODEL_ID, {
     input: {
