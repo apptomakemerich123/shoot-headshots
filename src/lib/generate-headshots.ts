@@ -1,12 +1,19 @@
 import { fal } from "@fal-ai/client";
+import type {
+  FluxKreaTrainerInput,
+  FluxKreaTrainerOutput,
+  FluxLoraInput,
+  FluxLoraOutput,
+} from "@fal-ai/client/endpoints";
+
 import type { VariationSpec } from "./variations";
 
 /**
  * Premium flow: train a subject LoRA (`fal-ai/flux-lora-fast-training`), then generate
  * headshots with `fal-ai/flux-lora` + trained weights.
  */
-const TRAINING_MODEL_ID = "fal-ai/flux-lora-fast-training";
-const GENERATION_MODEL_ID = "fal-ai/flux-lora";
+const TRAINING_MODEL_ID = "fal-ai/flux-lora-fast-training" as const;
+const GENERATION_MODEL_ID = "fal-ai/flux-lora" as const;
 
 /** Must match training `trigger_word`; include in every generation prompt. */
 export const LORA_TRIGGER_WORD = "portrperson";
@@ -29,21 +36,21 @@ function requireEnv(name: string) {
 export type GenerationPhase = "training" | "generating";
 
 export async function trainFluxLora(imagesDataUrl: string): Promise<string> {
+  const input: FluxKreaTrainerInput = {
+    images_data_url: imagesDataUrl,
+    trigger_word: LORA_TRIGGER_WORD,
+    create_masks: true,
+    is_style: false,
+    steps: 750,
+  };
+
   const result = await fal.subscribe(TRAINING_MODEL_ID, {
-    input: {
-      images_data_url: imagesDataUrl,
-      trigger_word: LORA_TRIGGER_WORD,
-      create_masks: true,
-      is_style: false,
-      steps: 750,
-    },
+    input,
     pollInterval: 4000,
   });
 
-  const out = result as unknown as {
-    data?: { diffusers_lora_file?: { url?: string } };
-  };
-  const url = out.data?.diffusers_lora_file?.url;
+  const data = result.data as FluxKreaTrainerOutput;
+  const url = data.diffusers_lora_file?.url;
   if (!url) throw new Error("LoRA training returned no diffusers_lora_file URL");
   return url;
 }
@@ -54,24 +61,24 @@ async function generateOne(
 ): Promise<string> {
   const prompt = `${LORA_TRIGGER_WORD}, ${PHOTO_PREFIX}${PHOTO_REALISM_BLOCK}${WARDROBE_PREFIX}${spec.prompt}`;
 
+  const input: FluxLoraInput = {
+    prompt,
+    image_size: spec.image_size as FluxLoraInput["image_size"],
+    num_inference_steps: 32,
+    guidance_scale: 3.5,
+    loras: [{ path: loraWeightsUrl, scale: 1 }],
+    enable_safety_checker: true,
+    output_format: "jpeg",
+    num_images: 1,
+  };
+
   const result = await fal.subscribe(GENERATION_MODEL_ID, {
-    input: {
-      prompt,
-      image_size: spec.image_size,
-      num_inference_steps: 32,
-      guidance_scale: 3.5,
-      loras: [{ path: loraWeightsUrl, scale: 1 }],
-      enable_safety_checker: true,
-      output_format: "jpeg",
-      num_images: 1,
-    },
+    input,
     pollInterval: 2000,
   });
 
-  const images = (
-    result as unknown as { data?: { images?: Array<{ url: string }> } }
-  ).data?.images;
-  const url = images?.[0]?.url;
+  const data = result.data as FluxLoraOutput;
+  const url = data.images?.[0]?.url;
   if (!url) throw new Error("No image returned from flux-lora");
   return url;
 }
