@@ -19,7 +19,7 @@ Open `http://localhost:3000`.
 
 ### Stripe
 
-- Set `STRIPE_SECRET_KEY` for Checkout ($14.99 product configured in code).
+- Set `STRIPE_SECRET_KEY` for Checkout ($29 product configured in code).
 - Without KV, uploads/orders persist in `.data/portr-store.json` locally. Use `PORT_MEMORY_STORE_ONLY=1` only if you explicitly want RAM-only storage.
 
 ### Resend (ready email)

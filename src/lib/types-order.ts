@@ -32,9 +32,9 @@ export type OrderRecord = {
   updatedAt: number;
 };
 
-/** Single product: $14.99 → 12 headshot variations after checkout */
+/** Single product: $29 → 12 headshot variations after checkout */
 export const PRODUCT = {
   label: "Portr — 12 AI headshots",
-  cents: 1499,
+  cents: 2900,
   count: 12,
 } as const;
