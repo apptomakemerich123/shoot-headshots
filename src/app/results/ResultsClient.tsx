@@ -44,21 +44,20 @@ export default function ResultsClient() {
   const [zipLoading, setZipLoading] = useState(false);
   const [zipErr, setZipErr] = useState<string | null>(null);
   const [genProgress, setGenProgress] = useState(0);
+  const [elapsedClock, setElapsedClock] = useState(() => Date.now());
 
   // Merge URL query + sessionStorage (fixes lost ?t= and matches server-side file/KV store).
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    if (tFromUrl) {
-      sessionStorage.setItem(UPLOAD_TOKEN_STORAGE_KEY, tFromUrl);
-      setUploadToken(tFromUrl);
+    queueMicrotask(() => {
+      if (tFromUrl) {
+        sessionStorage.setItem(UPLOAD_TOKEN_STORAGE_KEY, tFromUrl);
+        setUploadToken(tFromUrl);
+      } else {
+        setUploadToken(sessionStorage.getItem(UPLOAD_TOKEN_STORAGE_KEY));
+      }
       setResolvedTokenFromClient(true);
-      return;
-    }
-
-    const stored = sessionStorage.getItem(UPLOAD_TOKEN_STORAGE_KEY);
-    setUploadToken(stored);
-    setResolvedTokenFromClient(true);
+    });
   }, [tFromUrl]);
 
   // If we only have the token in sessionStorage, sync the URL so refresh/share keeps working.
@@ -92,19 +91,35 @@ export default function ResultsClient() {
   }, [uploadToken, sessionId]);
 
   useEffect(() => {
+    if (order?.status === "ready") {
+      queueMicrotask(() => setGenProgress(100));
+    }
+  }, [order?.status]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const waiting =
+      order?.status !== "ready" &&
+      order?.status !== "failed" &&
+      (phase === "hydrating" || phase === "finalizing" || phase === "polling");
+    if (!waiting) return;
+    const id = setInterval(() => setElapsedClock(Date.now()), 15000);
+    return () => clearInterval(id);
+  }, [sessionId, phase, order?.status]);
+
+  useEffect(() => {
     if (!sessionId) return;
     const busy =
       order?.status === "processing" &&
       (phase === "finalizing" || phase === "polling");
     if (!busy) {
-      if (order?.status === "ready") setGenProgress(100);
       return;
     }
 
     const jp: JobPhase | undefined = order?.jobPhase;
     const training = jp !== "generating";
 
-    setGenProgress(training ? 6 : 52);
+    queueMicrotask(() => setGenProgress(training ? 6 : 52));
     const id = setInterval(() => {
       setGenProgress((p) => {
         const isTraining = jp !== "generating";
@@ -283,7 +298,7 @@ export default function ResultsClient() {
 
     const tookTooLong =
       (phase === "hydrating" || phase === "finalizing" || phase === "polling") &&
-      Date.now() - startedAt > 26 * 60 * 1000 &&
+      elapsedClock - startedAt > 26 * 60 * 1000 &&
       order?.status !== "ready";
 
     return (

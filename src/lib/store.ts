@@ -15,14 +15,14 @@ const memory = new Map<string, string>();
 
 let warnedFileFallback = false;
 
-function useKv(): boolean {
+function isKvConfigured(): boolean {
   return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
 
 /** Use durable local file whenever KV is not configured (fixes "Upload not found" in dev). */
-function useFile(): boolean {
+function isFilePersistenceEnabled(): boolean {
   if (process.env.PORT_MEMORY_STORE_ONLY === "1") return false;
-  return !useKv();
+  return !isKvConfigured();
 }
 
 const FILE_PATH = path.join(process.cwd(), ".data", "portr-store.json");
@@ -42,7 +42,7 @@ async function fileSave(data: StoredValue): Promise<void> {
 }
 
 export async function storeGet<T>(key: string): Promise<T | null> {
-  if (useKv()) {
+  if (isKvConfigured()) {
     try {
       const { kv } = await import("@vercel/kv");
       const v = await kv.get<T>(key);
@@ -51,7 +51,7 @@ export async function storeGet<T>(key: string): Promise<T | null> {
       /* fall through */
     }
   }
-  if (useFile()) {
+  if (isFilePersistenceEnabled()) {
     try {
       const db = await fileLoad();
       const raw = db[key];
@@ -70,7 +70,7 @@ export async function storeGet<T>(key: string): Promise<T | null> {
 }
 
 export async function storeSet(key: string, value: unknown): Promise<void> {
-  if (useKv()) {
+  if (isKvConfigured()) {
     try {
       const { kv } = await import("@vercel/kv");
       await kv.set(key, value);
@@ -79,7 +79,7 @@ export async function storeSet(key: string, value: unknown): Promise<void> {
       /* fall through */
     }
   }
-  if (useFile()) {
+  if (isFilePersistenceEnabled()) {
     try {
       const db = await fileLoad();
       db[key] = value as StoredValue[string];
@@ -99,7 +99,7 @@ export async function storeSet(key: string, value: unknown): Promise<void> {
 }
 
 export async function storeDel(key: string): Promise<void> {
-  if (useKv()) {
+  if (isKvConfigured()) {
     try {
       const { kv } = await import("@vercel/kv");
       await kv.del(key);
@@ -108,7 +108,7 @@ export async function storeDel(key: string): Promise<void> {
       /* fall through */
     }
   }
-  if (useFile()) {
+  if (isFilePersistenceEnabled()) {
     try {
       const db = await fileLoad();
       delete db[key];

@@ -20,17 +20,15 @@ export default function CheckoutClient() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    if (tFromUrl) {
-      sessionStorage.setItem(UPLOAD_TOKEN_STORAGE_KEY, tFromUrl);
-      setToken(tFromUrl);
+    queueMicrotask(() => {
+      if (tFromUrl) {
+        sessionStorage.setItem(UPLOAD_TOKEN_STORAGE_KEY, tFromUrl);
+        setToken(tFromUrl);
+      } else {
+        setToken(sessionStorage.getItem(UPLOAD_TOKEN_STORAGE_KEY));
+      }
       setReady(true);
-      return;
-    }
-
-    const stored = sessionStorage.getItem(UPLOAD_TOKEN_STORAGE_KEY);
-    setToken(stored);
-    setReady(true);
+    });
   }, [tFromUrl]);
 
   async function pay() {
