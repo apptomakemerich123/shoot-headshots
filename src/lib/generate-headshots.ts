@@ -1,10 +1,11 @@
 import { fal } from "@fal-ai/client";
+
 import type {
-  FluxKreaTrainerInput,
-  FluxKreaTrainerOutput,
-  FluxLoraInput,
-  FluxLoraOutput,
-} from "@fal-ai/client/endpoints";
+  FluxLoraFastTrainingInput,
+  FluxLoraFastTrainingOutput,
+  FluxLoraGenerationInput,
+  FluxLoraGenerationOutput,
+} from "./fal-flux-lora-types";
 
 import type { VariationSpec } from "./variations";
 
@@ -12,8 +13,8 @@ import type { VariationSpec } from "./variations";
  * Premium flow: train a subject LoRA (`fal-ai/flux-lora-fast-training`), then generate
  * headshots with `fal-ai/flux-lora` + trained weights.
  */
-const TRAINING_MODEL_ID = "fal-ai/flux-lora-fast-training" as const;
-const GENERATION_MODEL_ID = "fal-ai/flux-lora" as const;
+const TRAINING_MODEL_ID = "fal-ai/flux-lora-fast-training";
+const GENERATION_MODEL_ID = "fal-ai/flux-lora";
 
 /** Must match training `trigger_word`; include in every generation prompt. */
 export const LORA_TRIGGER_WORD = "portrperson";
@@ -36,7 +37,7 @@ function requireEnv(name: string) {
 export type GenerationPhase = "training" | "generating";
 
 export async function trainFluxLora(imagesDataUrl: string): Promise<string> {
-  const input: FluxKreaTrainerInput = {
+  const input: FluxLoraFastTrainingInput = {
     images_data_url: imagesDataUrl,
     trigger_word: LORA_TRIGGER_WORD,
     create_masks: true,
@@ -49,7 +50,7 @@ export async function trainFluxLora(imagesDataUrl: string): Promise<string> {
     pollInterval: 4000,
   });
 
-  const data = result.data as FluxKreaTrainerOutput;
+  const data = result.data as FluxLoraFastTrainingOutput;
   const url = data.diffusers_lora_file?.url;
   if (!url) throw new Error("LoRA training returned no diffusers_lora_file URL");
   return url;
@@ -61,9 +62,9 @@ async function generateOne(
 ): Promise<string> {
   const prompt = `${LORA_TRIGGER_WORD}, ${PHOTO_PREFIX}${PHOTO_REALISM_BLOCK}${WARDROBE_PREFIX}${spec.prompt}`;
 
-  const input: FluxLoraInput = {
+  const input: FluxLoraGenerationInput = {
     prompt,
-    image_size: spec.image_size as FluxLoraInput["image_size"],
+    image_size: spec.image_size as FluxLoraGenerationInput["image_size"],
     num_inference_steps: 32,
     guidance_scale: 3.5,
     loras: [{ path: loraWeightsUrl, scale: 1 }],
@@ -77,7 +78,7 @@ async function generateOne(
     pollInterval: 2000,
   });
 
-  const data = result.data as FluxLoraOutput;
+  const data = result.data as FluxLoraGenerationOutput;
   const url = data.images?.[0]?.url;
   if (!url) throw new Error("No image returned from flux-lora");
   return url;
