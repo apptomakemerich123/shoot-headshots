@@ -13,7 +13,7 @@ import type { VariationSpec } from "./variations";
  * Premium flow: train a subject LoRA (`fal-ai/flux-lora-fast-training`), then generate
  * headshots with `fal-ai/flux-lora` + trained weights.
  */
-const TRAINING_MODEL_ID = "fal-ai/flux-lora-fast-training";
+export const TRAINING_MODEL_ID = "fal-ai/flux-lora-fast-training";
 const GENERATION_MODEL_ID = "fal-ai/flux-lora";
 
 /** Must match training `trigger_word`; include in every generation prompt. */
@@ -56,10 +56,30 @@ export async function trainFluxLora(imagesDataUrl: string): Promise<string> {
   return url;
 }
 
-async function generateOne(
+/** Non-blocking queue submit; poll status + `queue.result` elsewhere. */
+export async function submitLoraTrainingQueue(imagesDataUrl: string): Promise<string> {
+  fal.config({ credentials: requireEnv("FAL_KEY") });
+  const input: FluxLoraFastTrainingInput = {
+    images_data_url: imagesDataUrl,
+    trigger_word: LORA_TRIGGER_WORD,
+    create_masks: true,
+    is_style: false,
+    steps: 750,
+  };
+  const enqueued = await fal.queue.submit(TRAINING_MODEL_ID, { input });
+  const id =
+    "request_id" in enqueued && typeof enqueued.request_id === "string"
+      ? enqueued.request_id
+      : (enqueued as { requestId?: string }).requestId;
+  if (!id) throw new Error("FAL queue submit returned no request id");
+  return id;
+}
+
+export async function generateSingleFluxHeadshot(
   loraWeightsUrl: string,
   spec: VariationSpec,
 ): Promise<string> {
+  fal.config({ credentials: requireEnv("FAL_KEY") });
   const prompt = `${LORA_TRIGGER_WORD}, ${PHOTO_PREFIX}${PHOTO_REALISM_BLOCK}${WARDROBE_PREFIX}${spec.prompt}`;
 
   const input: FluxLoraGenerationInput = {
@@ -97,7 +117,7 @@ export async function generateHeadshotsWithLora(
   for (let i = 0; i < specs.length; i += concurrency) {
     const slice = specs.slice(i, i + concurrency);
     const chunk = await Promise.all(
-      slice.map((spec) => generateOne(loraWeightsUrl, spec)),
+      slice.map((spec) => generateSingleFluxHeadshot(loraWeightsUrl, spec)),
     );
     urls.push(...chunk);
     labels.push(...slice.map((s) => s.label));

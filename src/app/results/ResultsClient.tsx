@@ -8,9 +8,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 const UPLOAD_TOKEN_STORAGE_KEY = "portr_upload_token";
 
-async function fetchOrder(sessionId: string): Promise<OrderRecord | null> {
+/** Advances pipeline + returns latest order (use while processing). */
+async function fetchOrderProgress(sessionId: string): Promise<OrderRecord | null> {
   const res = await fetch(
-    `/api/order?session_id=${encodeURIComponent(sessionId)}`,
+    `/api/order/status?session_id=${encodeURIComponent(sessionId)}`,
   );
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("Could not load order");
@@ -143,7 +144,7 @@ export default function ResultsClient() {
     function startPolling() {
       timer = setInterval(async () => {
         try {
-          const o = await fetchOrder(sid);
+          const o = await fetchOrderProgress(sid);
           if (cancelled || !o) return;
           setOrder(o);
           if (o.status === "ready" || o.status === "failed") {
@@ -153,7 +154,7 @@ export default function ResultsClient() {
         } catch {
           /* keep polling */
         }
-      }, 2500);
+      }, 10_000);
     }
 
     async function run() {
@@ -161,7 +162,7 @@ export default function ResultsClient() {
       setOrderErr(null);
 
       try {
-        const initial = await fetchOrder(sid);
+        const initial = await fetchOrderProgress(sid);
         if (cancelled) return;
 
         if (initial) {
@@ -199,7 +200,7 @@ export default function ResultsClient() {
 
         setPhase("polling");
 
-        const after = await fetchOrder(sid);
+        const after = await fetchOrderProgress(sid);
         if (cancelled) return;
         if (after) {
           setOrder(after);

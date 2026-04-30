@@ -1,17 +1,13 @@
-import { after } from "next/server";
 import Stripe from "stripe";
 
-import { sendHeadshotDeliveryEmail } from "@/lib/email";
-import { trainAndGenerateHeadshotBatch } from "@/lib/generate-headshots";
-import { patchOrder } from "@/lib/patch-order";
+import { submitTrainingForOrder } from "@/lib/order-pipeline";
 import { storeGet, storeKeys, storeSet } from "@/lib/store";
-import { PRODUCT, type OrderRecord } from "@/lib/types-order";
-import { buildVariationList } from "@/lib/variations";
+import type { OrderRecord } from "@/lib/types-order";
 
 export const runtime = "nodejs";
 
-/** Train LoRA (~15–20 min) + generate 12 images — needs a generous host timeout. */
-export const maxDuration = 900;
+/** Submit training to FAL queue and return quickly (Hobby max 300s). */
+export const maxDuration = 300;
 
 function stripeSecret() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -19,64 +15,8 @@ function stripeSecret() {
   return key;
 }
 
-async function runGenerationJob(params: {
-  sessionId: string;
-  imagesDataUrl: string;
-  previewUrl: string;
-  customerEmail: string;
-}) {
-  const { sessionId, imagesDataUrl, previewUrl, customerEmail } = params;
-
-  try {
-    const specs = buildVariationList(PRODUCT.count);
-
-    const { urls, labels } = await trainAndGenerateHeadshotBatch(
-      imagesDataUrl,
-      specs,
-      async (phase) => {
-        await patchOrder(sessionId, { jobPhase: phase });
-      },
-    );
-
-    const ready: OrderRecord = {
-      status: "ready",
-      imagesDataUrl,
-      previewUrl,
-      imageUrls: urls,
-      labels,
-      customerEmail,
-      emailSent: false,
-      updatedAt: Date.now(),
-    };
-
-    await storeSet(storeKeys.order(sessionId), ready);
-
-    const sendResult = await sendHeadshotDeliveryEmail({
-      to: customerEmail,
-      sessionId,
-    });
-
-    await storeSet(storeKeys.order(sessionId), {
-      ...ready,
-      emailSent: sendResult.sent === true,
-      updatedAt: Date.now(),
-    });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Generation failed";
-    await storeSet(storeKeys.order(sessionId), {
-      status: "failed",
-      imagesDataUrl,
-      previewUrl,
-      customerEmail,
-      error: msg,
-      updatedAt: Date.now(),
-    } satisfies OrderRecord);
-  }
-}
-
 /**
- * Validates payment and marks processing, then kicks off train + generate in `after()`
- * so the redirect page gets an immediate JSON response.
+ * Validates payment and marks processing, then enqueues LoRA training on the FAL queue.
  */
 export async function POST(req: Request) {
   let body: { sessionId?: string };
@@ -109,6 +49,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: true, status: "ready" as const });
   }
   if (existing?.status === "processing") {
+    await submitTrainingForOrder(sessionId);
     return Response.json({ ok: true, status: "processing" as const });
   }
 
@@ -150,14 +91,7 @@ export async function POST(req: Request) {
     updatedAt: Date.now(),
   } satisfies OrderRecord);
 
-  after(async () => {
-    await runGenerationJob({
-      sessionId,
-      imagesDataUrl: upload.imagesDataUrl,
-      previewUrl: upload.previewUrl,
-      customerEmail: email,
-    });
-  });
+  await submitTrainingForOrder(sessionId);
 
   return Response.json({ ok: true, status: "processing" as const });
 }

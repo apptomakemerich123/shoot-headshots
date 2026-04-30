@@ -1,15 +1,15 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
-/** Optional landing route; Stripe success currently goes to `/results`. */
-export default async function ProcessingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ session_id?: string }>;
-}) {
-  const sp = await searchParams;
-  const sid = sp.session_id;
-  if (sid?.startsWith("cs_")) {
-    redirect(`/results?session_id=${encodeURIComponent(sid)}`);
-  }
-  redirect("/upload");
+import ProcessingClient from "./ProcessingClient";
+
+export default function ProcessingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl px-4 py-14 text-white/70">Loading…</div>
+      }
+    >
+      <ProcessingClient />
+    </Suspense>
+  );
 }

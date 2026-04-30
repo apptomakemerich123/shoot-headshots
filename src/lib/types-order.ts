@@ -15,6 +15,10 @@ export type OrderRecord = {
   status: OrderStatus;
   /** Zip URL used for LoRA training (optional once finished / for debugging). */
   imagesDataUrl?: string;
+  /** FAL queue request id after `fal.queue.submit` for LoRA training. */
+  trainingRequestId?: string;
+  /** Populated when training queue completes (before image generation). */
+  loraWeightsUrl?: string;
   /** Single preview thumb from upload bundle. */
   previewUrl?: string;
   imageUrls?: string[];

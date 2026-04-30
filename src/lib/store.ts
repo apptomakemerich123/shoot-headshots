@@ -69,6 +69,66 @@ export async function storeGet<T>(key: string): Promise<T | null> {
   }
 }
 
+type LockValue = { v: unknown; exp: number };
+
+function isLockValue(x: unknown): x is LockValue {
+  return (
+    typeof x === "object" &&
+    x !== null &&
+    "exp" in x &&
+    typeof (x as LockValue).exp === "number"
+  );
+}
+
+/**
+ * Set only if the key is unset or an expired lock. Returns true if this call owned the key.
+ * Used to single-flight order pipeline and training enqueue.
+ */
+export async function storeSetNx(
+  key: string,
+  value: unknown,
+  ttlSeconds: number,
+): Promise<boolean> {
+  const now = Date.now();
+  const exp = now + ttlSeconds * 1000;
+
+  if (isKvConfigured()) {
+    try {
+      const { kv } = await import("@vercel/kv");
+      const r = await kv.set(key, "1", { ex: ttlSeconds, nx: true });
+      return r === "OK";
+    } catch {
+      /* fall through */
+    }
+  }
+  if (isFilePersistenceEnabled()) {
+    try {
+      const db = await fileLoad();
+      const cur = db[key];
+      if (isLockValue(cur) && now < cur.exp) {
+        return false;
+      }
+      const payload: LockValue = { v: value, exp };
+      db[key] = payload as unknown as StoredValue[string];
+      await fileSave(db);
+      return true;
+    } catch {
+      /* fall through */
+    }
+  }
+  const cur = memory.get(key);
+  if (cur) {
+    try {
+      const parsed = JSON.parse(cur) as unknown;
+      if (isLockValue(parsed) && now < parsed.exp) return false;
+    } catch {
+      /* overwrite */
+    }
+  }
+  memory.set(key, JSON.stringify({ v: value, exp } satisfies LockValue));
+  return true;
+}
+
 export async function storeSet(key: string, value: unknown): Promise<void> {
   if (isKvConfigured()) {
     try {

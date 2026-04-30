@@ -1,15 +1,11 @@
-import { after } from "next/server";
 import Stripe from "stripe";
 
-import { sendHeadshotDeliveryEmail } from "@/lib/email";
-import { trainAndGenerateHeadshotBatch } from "@/lib/generate-headshots";
-import { patchOrder } from "@/lib/patch-order";
+import { submitTrainingForOrder } from "@/lib/order-pipeline";
 import { storeGet, storeKeys, storeSet } from "@/lib/store";
-import { PRODUCT, type OrderRecord, type UploadRecord } from "@/lib/types-order";
-import { buildVariationList } from "@/lib/variations";
+import type { OrderRecord, UploadRecord } from "@/lib/types-order";
 
 export const runtime = "nodejs";
-export const maxDuration = 900;
+export const maxDuration = 300;
 
 function stripeSecretKey() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -21,61 +17,6 @@ function stripeWebhookSecret() {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET is not set");
   return secret;
-}
-
-async function runGenerationJob(params: {
-  sessionId: string;
-  imagesDataUrl: string;
-  previewUrl: string;
-  customerEmail: string;
-}) {
-  const { sessionId, imagesDataUrl, previewUrl, customerEmail } = params;
-
-  try {
-    const specs = buildVariationList(PRODUCT.count);
-
-    const { urls, labels } = await trainAndGenerateHeadshotBatch(
-      imagesDataUrl,
-      specs,
-      async (phase) => {
-        await patchOrder(sessionId, { jobPhase: phase });
-      },
-    );
-
-    const ready: OrderRecord = {
-      status: "ready",
-      imagesDataUrl,
-      previewUrl,
-      imageUrls: urls,
-      labels,
-      customerEmail,
-      emailSent: false,
-      updatedAt: Date.now(),
-    };
-
-    await storeSet(storeKeys.order(sessionId), ready);
-
-    const sendResult = await sendHeadshotDeliveryEmail({
-      to: customerEmail,
-      sessionId,
-    });
-
-    await storeSet(storeKeys.order(sessionId), {
-      ...ready,
-      emailSent: sendResult.sent === true,
-      updatedAt: Date.now(),
-    });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Generation failed";
-    await storeSet(storeKeys.order(sessionId), {
-      status: "failed",
-      imagesDataUrl,
-      previewUrl,
-      customerEmail,
-      error: msg,
-      updatedAt: Date.now(),
-    } satisfies OrderRecord);
-  }
 }
 
 export async function POST(req: Request) {
@@ -155,14 +96,7 @@ export async function POST(req: Request) {
     updatedAt: Date.now(),
   } satisfies OrderRecord);
 
-  after(async () => {
-    await runGenerationJob({
-      sessionId,
-      imagesDataUrl: upload.imagesDataUrl,
-      previewUrl: upload.previewUrl,
-      customerEmail: email,
-    });
-  });
+  await submitTrainingForOrder(sessionId);
 
   return Response.json({ received: true, status: "processing" as const });
 }
