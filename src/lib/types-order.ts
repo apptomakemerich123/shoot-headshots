@@ -1,15 +1,26 @@
+/** Upload session after multi-photo registration (zip on FAL + preview image). */
 export type UploadRecord = {
-  beforeUrl: string;
+  /** Public URL to zip of training images (`images_data_url` for LoRA training). */
+  imagesDataUrl: string;
+  /** First photo URL for checkout preview. */
+  previewUrl: string;
   createdAt: number;
 };
 
 export type OrderStatus = "processing" | "ready" | "failed";
 
+export type JobPhase = "training" | "generating";
+
 export type OrderRecord = {
   status: OrderStatus;
-  beforeUrl?: string;
+  /** Zip URL used for LoRA training (optional once finished / for debugging). */
+  imagesDataUrl?: string;
+  /** Single preview thumb from upload bundle. */
+  previewUrl?: string;
   imageUrls?: string[];
   labels?: string[];
+  /** Fine-grained progress while status is processing. */
+  jobPhase?: JobPhase;
   /** Stripe Checkout customer email after payment */
   customerEmail?: string;
   emailSent?: boolean;

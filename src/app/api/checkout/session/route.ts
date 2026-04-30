@@ -48,7 +48,7 @@ export async function POST(req: Request) {
           product_data: {
             name: PRODUCT.label,
             description:
-              "12 AI headshot variations — multiple backgrounds and lighting",
+              "Custom LoRA training on your photos + 12 professional headshot variations",
           },
           unit_amount: PRODUCT.cents,
         },

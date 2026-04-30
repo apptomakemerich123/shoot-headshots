@@ -2,15 +2,16 @@ import { after } from "next/server";
 import Stripe from "stripe";
 
 import { sendHeadshotDeliveryEmail } from "@/lib/email";
-import { generateHeadshotBatch } from "@/lib/generate-headshots";
+import { trainAndGenerateHeadshotBatch } from "@/lib/generate-headshots";
+import { patchOrder } from "@/lib/patch-order";
 import { storeGet, storeKeys, storeSet } from "@/lib/store";
 import { PRODUCT, type OrderRecord } from "@/lib/types-order";
 import { buildVariationList } from "@/lib/variations";
 
 export const runtime = "nodejs";
 
-/** Generation runs after the HTTP response (via `after`) so the client isn’t blocked on multiple Fal calls. */
-export const maxDuration = 300;
+/** Train LoRA (~15–20 min) + generate 12 images — needs a generous host timeout. */
+export const maxDuration = 900;
 
 function stripeSecret() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -20,18 +21,27 @@ function stripeSecret() {
 
 async function runGenerationJob(params: {
   sessionId: string;
-  beforeUrl: string;
+  imagesDataUrl: string;
+  previewUrl: string;
   customerEmail: string;
 }) {
-  const { sessionId, beforeUrl, customerEmail } = params;
+  const { sessionId, imagesDataUrl, previewUrl, customerEmail } = params;
 
   try {
     const specs = buildVariationList(PRODUCT.count);
-    const { urls, labels } = await generateHeadshotBatch(beforeUrl, specs);
+
+    const { urls, labels } = await trainAndGenerateHeadshotBatch(
+      imagesDataUrl,
+      specs,
+      async (phase) => {
+        await patchOrder(sessionId, { jobPhase: phase });
+      },
+    );
 
     const ready: OrderRecord = {
       status: "ready",
-      beforeUrl,
+      imagesDataUrl,
+      previewUrl,
       imageUrls: urls,
       labels,
       customerEmail,
@@ -55,7 +65,8 @@ async function runGenerationJob(params: {
     const msg = e instanceof Error ? e.message : "Generation failed";
     await storeSet(storeKeys.order(sessionId), {
       status: "failed",
-      beforeUrl,
+      imagesDataUrl,
+      previewUrl,
       customerEmail,
       error: msg,
       updatedAt: Date.now(),
@@ -64,8 +75,8 @@ async function runGenerationJob(params: {
 }
 
 /**
- * Validates payment and marks processing, then kicks off generation in `after()`
- * so the redirect page gets an immediate JSON response and can show “Generating…”.
+ * Validates payment and marks processing, then kicks off train + generate in `after()`
+ * so the redirect page gets an immediate JSON response.
  */
 export async function POST(req: Request) {
   let body: { sessionId?: string };
@@ -109,10 +120,11 @@ export async function POST(req: Request) {
     );
   }
 
-  const upload = await storeGet<{ beforeUrl: string }>(
-    storeKeys.upload(uploadToken),
-  );
-  if (!upload?.beforeUrl) {
+  const upload = await storeGet<{
+    imagesDataUrl: string;
+    previewUrl: string;
+  }>(storeKeys.upload(uploadToken));
+  if (!upload?.imagesDataUrl) {
     return Response.json({ error: "Upload expired or missing" }, { status: 400 });
   }
 
@@ -131,15 +143,18 @@ export async function POST(req: Request) {
 
   await storeSet(storeKeys.order(sessionId), {
     status: "processing",
-    beforeUrl: upload.beforeUrl,
+    imagesDataUrl: upload.imagesDataUrl,
+    previewUrl: upload.previewUrl,
     customerEmail: email,
+    jobPhase: "training",
     updatedAt: Date.now(),
   } satisfies OrderRecord);
 
   after(async () => {
     await runGenerationJob({
       sessionId,
-      beforeUrl: upload.beforeUrl,
+      imagesDataUrl: upload.imagesDataUrl,
+      previewUrl: upload.previewUrl,
       customerEmail: email,
     });
   });

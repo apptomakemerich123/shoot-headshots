@@ -1,15 +1,15 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-export default function ProcessingPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/upload");
-  }, [router]);
-
-  return null;
+/** Optional landing route; Stripe success currently goes to `/results`. */
+export default async function ProcessingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ session_id?: string }>;
+}) {
+  const sp = await searchParams;
+  const sid = sp.session_id;
+  if (sid?.startsWith("cs_")) {
+    redirect(`/results?session_id=${encodeURIComponent(sid)}`);
+  }
+  redirect("/upload");
 }
-

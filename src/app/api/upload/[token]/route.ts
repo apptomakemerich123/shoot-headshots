@@ -18,7 +18,7 @@ export async function GET(
   }
 
   return Response.json({
-    beforeUrl: record.beforeUrl,
+    previewUrl: record.previewUrl,
     createdAt: record.createdAt,
   });
 }

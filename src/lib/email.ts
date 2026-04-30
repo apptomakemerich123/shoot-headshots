@@ -50,7 +50,7 @@ export async function sendHeadshotDeliveryEmail(opts: {
   const { error } = await resend.emails.send({
     from,
     to: opts.to,
-    subject: "Your Portr headshots are ready 🎉",
+    subject: "Your Portr headshots are ready!",
     text,
     html,
   });

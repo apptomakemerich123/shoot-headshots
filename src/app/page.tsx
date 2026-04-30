@@ -30,12 +30,12 @@ export default function Home() {
               Portr · AI headshots
             </p>
             <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight sm:text-6xl">
-              {PRODUCT.count} professional looks from one photo.
+              {PRODUCT.count} professional looks from your photos.
             </h1>
             <p className="mt-5 text-base leading-7 text-white/70 sm:text-lg">
-              Portr generates a full set of headshots — different backgrounds,
-              lighting, and crops — so you can pick the perfect shot for LinkedIn,
-              your site, or casting.
+              Portr trains on your photo set, then generates a full suite of
+              headshots — different backgrounds, lighting, and crops — so you can pick
+              the perfect shot for LinkedIn, your site, or casting.
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="flex flex-col gap-3">

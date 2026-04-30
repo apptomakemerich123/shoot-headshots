@@ -51,7 +51,7 @@ export function SiteShell({
               Refund Policy
             </Link>
             <span className="hidden text-white/30 sm:inline">·</span>
-            <span className="text-white/40">AI headshots from one photo.</span>
+            <span className="text-white/40">AI headshots from your photo set.</span>
           </div>
         </div>
       </footer>

@@ -2,7 +2,7 @@
 
 import { SiteShell } from "@/components/SiteShell";
 import { Button, Panel } from "@/components/ui";
-import { PRODUCT, type OrderRecord } from "@/lib/types-order";
+import { PRODUCT, type JobPhase, type OrderRecord } from "@/lib/types-order";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -29,7 +29,7 @@ export default function ResultsClient() {
   const [resolvedTokenFromClient, setResolvedTokenFromClient] =
     useState(false);
 
-  const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
 
   const [order, setOrder] = useState<OrderRecord | null>(null);
@@ -76,10 +76,10 @@ export default function ResultsClient() {
     (async () => {
       try {
         const res = await fetch(`/api/upload/${uploadToken}`);
-        const json = (await res.json()) as { beforeUrl?: string; error?: string };
+        const json = (await res.json()) as { previewUrl?: string; error?: string };
         if (!res.ok) throw new Error(json.error ?? "Could not load upload");
         if (cancelled) return;
-        setBeforeUrl(json.beforeUrl ?? null);
+        setPreviewUrl(json.previewUrl ?? null);
       } catch (e) {
         if (!cancelled) {
           setUploadErr(e instanceof Error ? e.message : "Load failed");
@@ -93,20 +93,29 @@ export default function ResultsClient() {
 
   useEffect(() => {
     if (!sessionId) return;
-    const generating =
-      (phase === "finalizing" || phase === "polling") &&
-      order?.status !== "ready" &&
-      order?.status !== "failed";
-    if (!generating) {
+    const busy =
+      order?.status === "processing" &&
+      (phase === "finalizing" || phase === "polling");
+    if (!busy) {
       if (order?.status === "ready") setGenProgress(100);
       return;
     }
-    setGenProgress(6);
+
+    const jp: JobPhase | undefined = order?.jobPhase;
+    const training = jp !== "generating";
+
+    setGenProgress(training ? 6 : 52);
     const id = setInterval(() => {
-      setGenProgress((p) => (p >= 94 ? p : p + 1.25));
-    }, 800);
+      setGenProgress((p) => {
+        const isTraining = jp !== "generating";
+        if (isTraining) {
+          return p >= 48 ? p : p + 0.25;
+        }
+        return p >= 93 ? p : p + 1.1;
+      });
+    }, training ? 3500 : 750);
     return () => clearInterval(id);
-  }, [sessionId, phase, order?.status]);
+  }, [sessionId, phase, order?.status, order?.jobPhase]);
 
   /** Stripe return: load order from server first so refresh always shows images when ready. */
   useEffect(() => {
@@ -209,7 +218,7 @@ export default function ResultsClient() {
         ? sessionStorage.getItem(UPLOAD_TOKEN_STORAGE_KEY)
         : null);
     if (!token) {
-      setCheckoutErr("Missing upload session. Go back and upload your photo again.");
+      setCheckoutErr("Missing upload session. Go back and upload your photos again.");
       return;
     }
     setCheckoutErr(null);
@@ -274,7 +283,7 @@ export default function ResultsClient() {
 
     const tookTooLong =
       (phase === "hydrating" || phase === "finalizing" || phase === "polling") &&
-      Date.now() - startedAt > 4 * 60 * 1000 &&
+      Date.now() - startedAt > 26 * 60 * 1000 &&
       order?.status !== "ready";
 
     return (
@@ -309,11 +318,15 @@ export default function ResultsClient() {
                       ? "Loading your order…"
                       : phase === "finalizing"
                         ? "Confirming payment…"
-                        : "Generating your headshots… this takes 2-3 minutes"}
+                        : order?.jobPhase === "generating"
+                          ? "Generating your headshots…"
+                          : "Training your model… (this takes ~15–20 minutes)"}
                   </p>
                   <p className="mt-1 text-sm text-white/55">
                     {phase === "polling"
-                      ? `Creating ${PRODUCT.count} variations — different backgrounds and lighting.`
+                      ? order?.jobPhase === "generating"
+                        ? `Creating ${PRODUCT.count} variations — different backgrounds and wardrobe.`
+                        : "Fine-tuning on your photos — please keep this tab open."
                       : "Almost there."}
                   </p>
                   {phase === "polling" || phase === "finalizing" ? (
@@ -373,14 +386,14 @@ export default function ResultsClient() {
                 <p className="mt-2 text-sm text-red-300">{zipErr}</p>
               ) : null}
 
-              {order.beforeUrl ? (
+              {order.previewUrl ? (
                 <>
-                  <p className="mt-6 text-xs text-white/45">Original upload</p>
+                  <p className="mt-6 text-xs text-white/45">Training preview</p>
                   <div className="mt-2 max-w-xs">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={order.beforeUrl}
-                      alt="Original"
+                      src={order.previewUrl}
+                      alt="Training set preview"
                       className="rounded-lg border border-[var(--border)] object-cover"
                     />
                   </div>
@@ -435,7 +448,7 @@ export default function ResultsClient() {
       );
     }
 
-    if (!beforeUrl) {
+    if (!previewUrl) {
       return (
         <SiteShell ctaHref="/upload" ctaLabel="Back">
           <div className="mx-auto max-w-3xl px-4 py-14 text-white/70">
@@ -452,9 +465,9 @@ export default function ResultsClient() {
             Complete your order
           </h1>
           <p className="mt-2 text-sm text-white/65">
-            After payment we automatically generate {PRODUCT.count} headshots with
-            varied backgrounds and lighting. Your gallery is tied to your Stripe
-            receipt — refresh anytime.
+            After payment we train on your photos (~15–20 minutes), then generate{" "}
+            {PRODUCT.count} headshots with varied backgrounds and wardrobe. Your gallery
+            is tied to your Stripe receipt — refresh anytime.
           </p>
 
           <Panel className="mt-8 p-8">
@@ -478,12 +491,12 @@ export default function ResultsClient() {
             <p className="mt-4 text-sm text-red-300">{checkoutErr}</p>
           ) : null}
 
-          <p className="mt-10 text-xs text-white/45">Your original photo</p>
+          <p className="mt-10 text-xs text-white/45">Preview (first of your set)</p>
           <div className="mt-2 max-w-sm">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={beforeUrl}
-              alt="Your upload"
+              src={previewUrl}
+              alt="Your uploads preview"
               className="rounded-xl border border-[var(--border)] object-cover"
             />
           </div>
@@ -509,7 +522,7 @@ export default function ResultsClient() {
           Nothing to show
         </h1>
         <p className="mt-2 text-sm text-white/65">
-          Upload a photo first, or open your results link from Stripe.
+          Upload photos first, or open your results link from Stripe.
         </p>
         <div className="mt-8">
           <Button href="/upload">Go to upload</Button>

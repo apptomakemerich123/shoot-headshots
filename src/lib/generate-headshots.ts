@@ -2,53 +2,23 @@ import { fal } from "@fal-ai/client";
 import type { VariationSpec } from "./variations";
 
 /**
- * Identity-preserving generation: Flux + PuLID (`fal-ai/flux-pulid`).
- * Commercial endpoint on FAL; keeps likeness from `reference_image_url` while the prompt
- * drives wardrobe, background, and lighting. Prefer over plain img2img (flux/dev) for
- * consistent faces across 12 looks. Alternatives on FAL: `fal-ai/pulid` (non-Flux),
- * `fal-ai/ip-adapter-face-id` (research), `fal-ai/instantid` (often private / limited).
- *
- * Gender: the public FAL input schema for `fal-ai/flux-pulid` has no `gender` field
- * (see model API docs). Prompts stay gender-neutral ("person"); a `gender` value on the
- * order can be threaded into prompts later if needed.
+ * Premium flow: train a subject LoRA (`fal-ai/flux-lora-fast-training`), then generate
+ * headshots with `fal-ai/flux-lora` + trained weights.
  */
-const MODEL_ID = "fal-ai/flux-pulid";
+const TRAINING_MODEL_ID = "fal-ai/flux-lora-fast-training";
+const GENERATION_MODEL_ID = "fal-ai/flux-lora";
 
-/** Strong ID adherence — PuLID identity loss; higher preserves face and hair more strongly. */
-const ID_WEIGHT = 1.5;
+/** Must match training `trigger_word`; include in every generation prompt. */
+export const LORA_TRIGGER_WORD = "portrperson";
 
 const PHOTO_PREFIX =
-  "Professional corporate headshot photograph of one adult person, same identity as the reference face, looking at the camera, natural flattering light on face and shoulders, sharp facial details, catchlights in eyes, authentic professional portrait, not a selfie. ";
+  `Professional corporate headshot photograph of ${LORA_TRIGGER_WORD}, looking at the camera, natural flattering light on face and shoulders, sharp facial details, catchlights in eyes, authentic professional portrait, not a selfie. `;
 
-/** Applied to every variation prompt for camera / texture realism. */
 const PHOTO_REALISM_BLOCK =
-  "photorealistic, shot on Sony A7R, 85mm f/1.4 lens, natural skin texture, subsurface scattering, real photograph, not AI generated, DSLR quality, professional photographer, preserve exact hair color, hair length, and hair style from reference photo. ";
+  "photorealistic, shot on Sony A7R, 85mm f/1.4 lens, natural skin texture, subsurface scattering, real photograph, not AI generated, DSLR quality, professional photographer, preserve exact hair color, hair length, and hair style from training photos. ";
 
-/** Scene/outfit come from text; reference is for identity only. */
 const WARDROBE_PREFIX =
-  "Styling for this shot only — ignore any clothing in the reference image; dress the person in the wardrobe described below. ";
-
-const NEGATIVE_PROMPT = [
-  "bad quality",
-  "worst quality",
-  "low resolution",
-  "blurry face",
-  "distorted face",
-  "extra limbs",
-  "multiple people",
-  "two faces",
-  "duplicate",
-  "watermark",
-  "text overlay",
-  "logo",
-  "cartoon",
-  "anime",
-  "plastic skin",
-  "studio light stand",
-  "camera visible",
-  "tripod",
-  "ring light visible",
-].join(", ");
+  `Dress ${LORA_TRIGGER_WORD} in the wardrobe described below — styling changes each shot; ignore casual clothing from training photos. `;
 
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -56,23 +26,44 @@ function requireEnv(name: string) {
   return v;
 }
 
+export type GenerationPhase = "training" | "generating";
+
+export async function trainFluxLora(imagesDataUrl: string): Promise<string> {
+  const result = await fal.subscribe(TRAINING_MODEL_ID, {
+    input: {
+      images_data_url: imagesDataUrl,
+      trigger_word: LORA_TRIGGER_WORD,
+      create_masks: true,
+      is_style: false,
+      steps: 750,
+    },
+    pollInterval: 4000,
+  });
+
+  const out = result as unknown as {
+    data?: { diffusers_lora_file?: { url?: string } };
+  };
+  const url = out.data?.diffusers_lora_file?.url;
+  if (!url) throw new Error("LoRA training returned no diffusers_lora_file URL");
+  return url;
+}
+
 async function generateOne(
-  beforeUrl: string,
+  loraWeightsUrl: string,
   spec: VariationSpec,
 ): Promise<string> {
-  const prompt = `${PHOTO_PREFIX}${PHOTO_REALISM_BLOCK}${WARDROBE_PREFIX}${spec.prompt}`;
+  const prompt = `${LORA_TRIGGER_WORD}, ${PHOTO_PREFIX}${PHOTO_REALISM_BLOCK}${WARDROBE_PREFIX}${spec.prompt}`;
 
-  const result = await fal.subscribe(MODEL_ID, {
+  const result = await fal.subscribe(GENERATION_MODEL_ID, {
     input: {
       prompt,
-      reference_image_url: beforeUrl,
       image_size: spec.image_size,
       num_inference_steps: 32,
-      guidance_scale: 4.5,
-      negative_prompt: NEGATIVE_PROMPT,
-      id_weight: ID_WEIGHT,
-      max_sequence_length: "512",
+      guidance_scale: 3.5,
+      loras: [{ path: loraWeightsUrl, scale: 1 }],
       enable_safety_checker: true,
+      output_format: "jpeg",
+      num_images: 1,
     },
     pollInterval: 2000,
   });
@@ -81,13 +72,12 @@ async function generateOne(
     result as unknown as { data?: { images?: Array<{ url: string }> } }
   ).data?.images;
   const url = images?.[0]?.url;
-  if (!url) throw new Error("No image returned from model");
+  if (!url) throw new Error("No image returned from flux-lora");
   return url;
 }
 
-/** Run in small parallel batches to reduce rate-limit issues. */
-export async function generateHeadshotBatch(
-  beforeUrl: string,
+export async function generateHeadshotsWithLora(
+  loraWeightsUrl: string,
   specs: VariationSpec[],
   concurrency = 2,
 ): Promise<{ urls: string[]; labels: string[] }> {
@@ -99,11 +89,28 @@ export async function generateHeadshotBatch(
   for (let i = 0; i < specs.length; i += concurrency) {
     const slice = specs.slice(i, i + concurrency);
     const chunk = await Promise.all(
-      slice.map((spec) => generateOne(beforeUrl, spec)),
+      slice.map((spec) => generateOne(loraWeightsUrl, spec)),
     );
     urls.push(...chunk);
     labels.push(...slice.map((s) => s.label));
   }
 
   return { urls, labels };
+}
+
+/**
+ * Train on zipped portraits, then generate all variations. Optional callback updates job phase for UI polling.
+ */
+export async function trainAndGenerateHeadshotBatch(
+  imagesDataUrl: string,
+  specs: VariationSpec[],
+  onPhase?: (phase: GenerationPhase) => void | Promise<void>,
+): Promise<{ urls: string[]; labels: string[] }> {
+  fal.config({ credentials: requireEnv("FAL_KEY") });
+
+  await onPhase?.("training");
+  const loraWeightsUrl = await trainFluxLora(imagesDataUrl);
+
+  await onPhase?.("generating");
+  return generateHeadshotsWithLora(loraWeightsUrl, specs);
 }

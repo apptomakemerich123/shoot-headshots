@@ -2,13 +2,14 @@ import { after } from "next/server";
 import Stripe from "stripe";
 
 import { sendHeadshotDeliveryEmail } from "@/lib/email";
-import { generateHeadshotBatch } from "@/lib/generate-headshots";
+import { trainAndGenerateHeadshotBatch } from "@/lib/generate-headshots";
+import { patchOrder } from "@/lib/patch-order";
 import { storeGet, storeKeys, storeSet } from "@/lib/store";
 import { PRODUCT, type OrderRecord, type UploadRecord } from "@/lib/types-order";
 import { buildVariationList } from "@/lib/variations";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 900;
 
 function stripeSecretKey() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -24,18 +25,27 @@ function stripeWebhookSecret() {
 
 async function runGenerationJob(params: {
   sessionId: string;
-  beforeUrl: string;
+  imagesDataUrl: string;
+  previewUrl: string;
   customerEmail: string;
 }) {
-  const { sessionId, beforeUrl, customerEmail } = params;
+  const { sessionId, imagesDataUrl, previewUrl, customerEmail } = params;
 
   try {
     const specs = buildVariationList(PRODUCT.count);
-    const { urls, labels } = await generateHeadshotBatch(beforeUrl, specs);
+
+    const { urls, labels } = await trainAndGenerateHeadshotBatch(
+      imagesDataUrl,
+      specs,
+      async (phase) => {
+        await patchOrder(sessionId, { jobPhase: phase });
+      },
+    );
 
     const ready: OrderRecord = {
       status: "ready",
-      beforeUrl,
+      imagesDataUrl,
+      previewUrl,
       imageUrls: urls,
       labels,
       customerEmail,
@@ -59,7 +69,8 @@ async function runGenerationJob(params: {
     const msg = e instanceof Error ? e.message : "Generation failed";
     await storeSet(storeKeys.order(sessionId), {
       status: "failed",
-      beforeUrl,
+      imagesDataUrl,
+      previewUrl,
       customerEmail,
       error: msg,
       updatedAt: Date.now(),
@@ -113,7 +124,7 @@ export async function POST(req: Request) {
   }
 
   const upload = await storeGet<UploadRecord>(storeKeys.upload(uploadToken));
-  if (!upload?.beforeUrl) {
+  if (!upload?.imagesDataUrl) {
     await storeSet(storeKeys.order(sessionId), {
       status: "failed",
       error: "Upload expired or missing",
@@ -127,7 +138,8 @@ export async function POST(req: Request) {
   if (!email) {
     await storeSet(storeKeys.order(sessionId), {
       status: "failed",
-      beforeUrl: upload.beforeUrl,
+      imagesDataUrl: upload.imagesDataUrl,
+      previewUrl: upload.previewUrl,
       error: "No customer email on this Checkout session",
       updatedAt: Date.now(),
     } satisfies OrderRecord);
@@ -136,15 +148,18 @@ export async function POST(req: Request) {
 
   await storeSet(storeKeys.order(sessionId), {
     status: "processing",
-    beforeUrl: upload.beforeUrl,
+    imagesDataUrl: upload.imagesDataUrl,
+    previewUrl: upload.previewUrl,
     customerEmail: email,
+    jobPhase: "training",
     updatedAt: Date.now(),
   } satisfies OrderRecord);
 
   after(async () => {
     await runGenerationJob({
       sessionId,
-      beforeUrl: upload.beforeUrl,
+      imagesDataUrl: upload.imagesDataUrl,
+      previewUrl: upload.previewUrl,
       customerEmail: email,
     });
   });

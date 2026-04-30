@@ -80,7 +80,7 @@ export default function CheckoutClient() {
         <div className="mx-auto max-w-lg px-4 py-14">
           <h1 className="text-2xl font-semibold tracking-tight">Checkout</h1>
           <p className="mt-2 text-sm text-white/65">
-            No upload session. Upload a photo first.
+            No upload session. Upload your photo set first.
           </p>
           <div className="mt-6">
             <Button href="/upload">Go to upload</Button>
@@ -109,11 +109,12 @@ export default function CheckoutClient() {
             </p>
           </div>
           <p className="mt-4 text-sm text-white/55">
-            Multiple backgrounds, lighting, and crops — generated after payment.
+            We train a model on your uploads (~15–20 min), then generate your set —
+            multiple backgrounds, wardrobe, and crops.
           </p>
           <p className="mt-4 text-xs text-white/45">
             You’ll be redirected to Stripe to complete payment. After paying,
-            you’ll return to your results page to track generation.
+            you’ll return to your results page to track training and generation.
           </p>
           <div className="mt-6">
             <Button disabled={loading} onClick={pay}>
@@ -128,7 +129,7 @@ export default function CheckoutClient() {
 
         <p className="mt-8 text-xs text-white/45">
           <Link className="underline hover:text-white" href="/upload">
-            Upload a different photo
+            Upload a different set
           </Link>
         </p>
       </div>
