@@ -39,7 +39,7 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="flex flex-col gap-3">
-                <Button href="/upload">Upload a photo</Button>
+                <Button href="/upload">Upload your photos</Button>
                 <p className="text-center text-[11px] font-medium uppercase tracking-[0.12em] text-emerald-400/95 sm:text-left">
                   100% satisfaction guarantee or your money back
                 </p>
@@ -52,8 +52,8 @@ export default function Home() {
               </a>
             </div>
             <p className="mt-4 text-xs text-white/45">
-              Tip: use a recent front-facing photo with good lighting and a neutral
-              background for best results.
+              Tip: use 10–20 recent front-facing photos with good lighting and neutral
+              backgrounds for best results.
             </p>
           </div>
         </div>
@@ -69,9 +69,7 @@ export default function Home() {
               One simple package — ${(PRODUCT.cents / 100).toFixed(2)} for{" "}
               {PRODUCT.count} variations.
             </p>
-            <p className="mt-2 text-sm text-white/55">
-              Join 500+ professionals who upgraded their headshot.
-            </p>
+            <p className="mt-2 text-sm text-white/55">Built for professionals.</p>
           </div>
           <div className="hidden sm:block">
             <Button href="/upload" className="bg-white">
@@ -85,7 +83,7 @@ export default function Home() {
             <p className="text-xs font-medium tracking-[0.18em] text-white/55">
               01 UPLOAD
             </p>
-            <p className="mt-3 text-base font-medium">One clear photo.</p>
+            <p className="mt-3 text-base font-medium">10–20 photos.</p>
             <p className="mt-2 text-sm leading-6 text-white/65">
               We store it securely on our servers until your order completes.
             </p>
