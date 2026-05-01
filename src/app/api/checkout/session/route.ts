@@ -47,8 +47,7 @@ export async function POST(req: Request) {
           currency: "usd",
           product_data: {
             name: PRODUCT.label,
-            description:
-              "Custom LoRA training on your photos + 12 professional headshot variations",
+            description: `Custom LoRA training on your photos + ${PRODUCT.count} professional headshot variations`,
           },
           unit_amount: PRODUCT.cents,
         },

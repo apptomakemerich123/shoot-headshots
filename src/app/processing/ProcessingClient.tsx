@@ -25,7 +25,8 @@ export default function ProcessingClient() {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!sessionId?.startsWith("cs_")) return;
+    if (!sessionId || !sessionId.startsWith("cs_")) return;
+    const checkoutSessionId: string = sessionId;
 
     let cancelled = false;
 
@@ -33,15 +34,19 @@ export default function ProcessingClient() {
 
     async function tick() {
       try {
-        const o = await fetchOrderStatus(sessionId);
+        const o = await fetchOrderStatus(checkoutSessionId);
         if (cancelled || !o) return;
         setOrder(o);
         if (o.status === "ready") {
           clearInterval(timer);
-          router.replace(`/results?session_id=${encodeURIComponent(sessionId)}`);
+          router.replace(
+            `/results?session_id=${encodeURIComponent(checkoutSessionId)}`,
+          );
         } else if (o.status === "failed") {
           clearInterval(timer);
-          router.replace(`/results?session_id=${encodeURIComponent(sessionId)}`);
+          router.replace(
+            `/results?session_id=${encodeURIComponent(checkoutSessionId)}`,
+          );
         }
       } catch (e) {
         if (!cancelled) {
@@ -74,10 +79,13 @@ export default function ProcessingClient() {
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           Creating your Portr set
         </h1>
-        <p className="mt-2 text-sm text-white/65">
-          Training and generation run in the background. This page updates every{" "}
-          {POLL_MS / 1000} seconds — you can leave and open your results link from
-          Stripe anytime.
+        <p className="mt-2 text-sm leading-7 text-white/75">
+          Your headshots are being created. This usually takes 15–25 minutes.
+          We&apos;ll email you when they&apos;re ready — you can close this tab.
+        </p>
+        <p className="mt-3 text-xs text-white/50">
+          This page checks every {POLL_MS / 1000} seconds; you can also reopen your
+          results link from Stripe anytime.
         </p>
 
         {err ? (

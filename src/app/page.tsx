@@ -40,8 +40,8 @@ export default function Home() {
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="flex flex-col gap-3">
                 <Button href="/upload">Upload your photos</Button>
-                <p className="text-center text-[11px] font-medium uppercase tracking-[0.12em] text-emerald-400/95 sm:text-left">
-                  100% satisfaction guarantee or your money back
+                <p className="text-center text-sm text-emerald-400/95 sm:text-left">
+                  ❤️ Love it or your money back — guaranteed
                 </p>
               </div>
               <a

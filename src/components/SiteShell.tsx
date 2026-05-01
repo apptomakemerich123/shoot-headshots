@@ -42,7 +42,13 @@ export function SiteShell({
       <main>{children}</main>
       <footer className="border-t border-[var(--border)]">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 Portr. All rights reserved.</p>
+          <div className="max-w-xl space-y-2">
+            <p>© 2026 Portr. All rights reserved.</p>
+            <p className="text-white/40">
+              Your photos are automatically deleted from our servers 7 days after your
+              order is complete.
+            </p>
+          </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-white/45">
             <Link href="/privacy" className="hover:text-white/80">
               Privacy Policy

@@ -8,9 +8,9 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <p className="mt-6 text-sm leading-7 text-white/75">
-          We store your uploaded photo securely to generate your headshots. Your
-          photo is deleted after 30 days. We never sell your data. Questions:{" "}
-          getportr@gmail.com
+          We store your uploaded photos securely to generate your headshots. Your
+          photos are automatically deleted from our servers 7 days after your order is
+          complete. We never sell your data. Questions: getportr@gmail.com
         </p>
       </div>
     </SiteShell>
