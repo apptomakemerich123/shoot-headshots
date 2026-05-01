@@ -12,9 +12,6 @@ export const maxDuration = 120;
 
 const MIN_PHOTOS = 10;
 const MAX_PHOTOS = 20;
-/** Match client upload page — allow smaller screenshots; still block tiny thumbnails. */
-const MIN_FILE_KB = 100;
-const MIN_BYTES = MIN_FILE_KB * 1024;
 const ALLOWED = new Set([
   "image/jpeg",
   "image/jpg",
@@ -48,6 +45,24 @@ function requireEnv(name: string) {
   return v;
 }
 
+function jsonErr(status: number, message: string, logCtx?: Record<string, unknown>) {
+  console.error("[upload/register]", message, logCtx ?? "");
+  return Response.json({ error: message }, { status });
+}
+
+function logUnknownError(phase: string, e: unknown) {
+  const detail =
+    e && typeof e === "object"
+      ? {
+          ...("message" in e ? { message: (e as { message: unknown }).message } : {}),
+          ...("stack" in e ? { stack: (e as { stack: unknown }).stack } : {}),
+          ...("body" in e ? { body: (e as { body: unknown }).body } : {}),
+          ...("status" in e ? { status: (e as { status: unknown }).status } : {}),
+        }
+      : { raw: String(e) };
+  console.error("[upload/register] FAILED at:", phase, detail, e);
+}
+
 function extForFile(file: File): string {
   const n = file.name.toLowerCase();
   if (n.endsWith(".png")) return "png";
@@ -64,70 +79,105 @@ function extForFile(file: File): string {
 /** Upload photos → zip on FAL + preview URL (first image). No generation yet. */
 export async function POST(req: Request) {
   try {
-    fal.config({ credentials: requireEnv("FAL_KEY") });
+    let falKey: string;
+    try {
+      falKey = requireEnv("FAL_KEY");
+    } catch (e) {
+      logUnknownError("env:FAL_KEY", e);
+      return jsonErr(500, "Server configuration error.");
+    }
 
-    const form = await req.formData();
+    fal.config({ credentials: falKey });
+
+    let form: FormData;
+    try {
+      form = await req.formData();
+    } catch (e) {
+      logUnknownError("parseFormData", e);
+      return jsonErr(400, "Could not read upload body.", {
+        hint: "request_too_large_or_corrupt",
+      });
+    }
+
     const raw = form.getAll("files");
     const files = raw.filter((x): x is File => x instanceof File);
 
     if (files.length < MIN_PHOTOS) {
-      return Response.json(
-        {
-          error: `Please upload at least ${MIN_PHOTOS} photos (you sent ${files.length}).`,
-        },
-        { status: 400 },
+      return jsonErr(
+        400,
+        `Please upload at least ${MIN_PHOTOS} photos (you sent ${files.length}).`,
       );
     }
     if (files.length > MAX_PHOTOS) {
-      return Response.json(
-        {
-          error: `Please upload at most ${MAX_PHOTOS} photos (you sent ${files.length}).`,
-        },
-        { status: 400 },
+      return jsonErr(
+        400,
+        `Please upload at most ${MAX_PHOTOS} photos (you sent ${files.length}).`,
       );
     }
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!isAllowedImage(file)) {
-        return Response.json(
-          {
-            error: `Photo ${i + 1}: use JPG, PNG, HEIC, HEIF, or WebP.`,
-          },
-          { status: 400 },
-        );
-      }
-      if (file.size < MIN_BYTES) {
-        return Response.json(
-          {
-            error: `Photo ${i + 1} is too small (under ${MIN_FILE_KB}KB). Try a less compressed export or full-resolution shot.`,
-          },
-          { status: 400 },
+        return jsonErr(
+          400,
+          `Photo ${i + 1}: use JPG, PNG, HEIC, HEIF, or WebP.`,
         );
       }
     }
 
-    const previewUrl = await fal.storage.upload(files[0]);
-
-    const zip = new JSZip();
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const buf = Buffer.from(await file.arrayBuffer());
-      const ext = extForFile(file);
-      zip.file(`portr_${String(i + 1).padStart(2, "0")}.${ext}`, buf);
+    let previewUrl: string;
+    try {
+      console.log("[upload/register] FAL storage: uploading preview (first file)", {
+        name: files[0].name,
+        size: files[0].size,
+        type: files[0].type,
+      });
+      previewUrl = await fal.storage.upload(files[0]);
+      console.log("[upload/register] FAL preview OK", {
+        previewUrl: previewUrl.slice(0, 80),
+      });
+    } catch (e) {
+      logUnknownError("fal.storage.upload(preview)", e);
+      return jsonErr(
+        500,
+        "Could not store preview image. Please try again.",
+      );
     }
 
-    const zipped = await zip.generateAsync({
-      type: "nodebuffer",
-      compression: "DEFLATE",
-    });
+    let imagesDataUrl: string;
+    try {
+      const zip = new JSZip();
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const buf = Buffer.from(await file.arrayBuffer());
+        const ext = extForFile(file);
+        zip.file(`portr_${String(i + 1).padStart(2, "0")}.${ext}`, buf);
+      }
 
-    const zipBytes = new Uint8Array(zipped);
-    const zipBlob = new Blob([zipBytes], { type: "application/zip" });
-    const zipFile = new File([zipBlob], "portr-training.zip", {
-      type: "application/zip",
-    });
-    const imagesDataUrl = await fal.storage.upload(zipFile);
+      const zipped = await zip.generateAsync({
+        type: "nodebuffer",
+        compression: "DEFLATE",
+      });
+
+      const zipBytes = new Uint8Array(zipped);
+      const zipBlob = new Blob([zipBytes], { type: "application/zip" });
+      const zipFile = new File([zipBlob], "portr-training.zip", {
+        type: "application/zip",
+      });
+      console.log("[upload/register] FAL storage: uploading zip", {
+        zipBytes: zipBytes.length,
+      });
+      imagesDataUrl = await fal.storage.upload(zipFile);
+      console.log("[upload/register] FAL zip OK", {
+        imagesDataUrl: imagesDataUrl.slice(0, 80),
+      });
+    } catch (e) {
+      logUnknownError("fal.storage.upload(zip)", e);
+      return jsonErr(
+        500,
+        "Could not package or store your photos. Please try again.",
+      );
+    }
 
     const uploadToken = randomUUID();
 
@@ -137,13 +187,19 @@ export async function POST(req: Request) {
       createdAt: Date.now(),
     };
 
-    await storeSet(storeKeys.upload(uploadToken), record);
+    try {
+      await storeSet(storeKeys.upload(uploadToken), record);
+    } catch (e) {
+      logUnknownError("storeSet(upload)", e);
+      return jsonErr(500, "Could not save upload session. Please try again.");
+    }
 
     return Response.json({ uploadToken, previewUrl });
   } catch (e) {
-    return Response.json(
-      { error: e instanceof Error ? e.message : "Upload failed" },
-      { status: 500 },
+    logUnknownError("POST(unhandled)", e);
+    return jsonErr(
+      500,
+      e instanceof Error ? e.message : "Upload failed",
     );
   }
 }
