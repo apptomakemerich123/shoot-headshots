@@ -1,6 +1,6 @@
 ## Portr — AI headshots
 
-Next.js app: upload one photo, pay once, get **12** AI headshot variations (stored server-side by Stripe session).
+Next.js app: upload one photo, pay once, get **40** AI headshot variations (stored server-side by Stripe session).
 
 ### Run locally
 
