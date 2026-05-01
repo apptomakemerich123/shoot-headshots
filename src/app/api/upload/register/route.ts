@@ -1,49 +1,16 @@
-import { fal } from "@fal-ai/client";
-import JSZip from "jszip";
 import { randomUUID } from "crypto";
 
+import { isTrustedFalStorageUrl } from "@/lib/fal-env";
 import { storeKeys, storeSet } from "@/lib/store";
 import type { UploadRecord } from "@/lib/types-order";
 
 export const runtime = "nodejs";
 
-/** Allow packaging 10–20 photos into a zip for FAL without hitting default body limits. */
-export const maxDuration = 120;
+/** Session persistence only — large files go client → FAL directly (see /api/upload/fal-initiate). */
+export const maxDuration = 60;
 
 const MIN_PHOTOS = 10;
 const MAX_PHOTOS = 20;
-const ALLOWED = new Set([
-  "image/jpeg",
-  "image/jpg",
-  "image/pjpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-]);
-
-function mimeBase(file: File): string {
-  return (file.type ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
-}
-
-function extMatchesPhonePhoto(name: string): boolean {
-  return /\.(jpe?g|png|heic|heif|webp)$/i.test(name);
-}
-
-function isAllowedImage(file: File): boolean {
-  const base = mimeBase(file);
-  if (ALLOWED.has(base)) return true;
-  if (base === "" || base === "application/octet-stream") {
-    return extMatchesPhonePhoto(file.name);
-  }
-  return false;
-}
-
-function requireEnv(name: string) {
-  const v = process.env[name];
-  if (!v) throw new Error(`${name} is not set`);
-  return v;
-}
 
 function jsonErr(status: number, message: string, logCtx?: Record<string, unknown>) {
   console.error("[upload/register]", message, logCtx ?? "");
@@ -56,126 +23,78 @@ function logUnknownError(phase: string, e: unknown) {
       ? {
           ...("message" in e ? { message: (e as { message: unknown }).message } : {}),
           ...("stack" in e ? { stack: (e as { stack: unknown }).stack } : {}),
-          ...("body" in e ? { body: (e as { body: unknown }).body } : {}),
-          ...("status" in e ? { status: (e as { status: unknown }).status } : {}),
         }
       : { raw: String(e) };
   console.error("[upload/register] FAILED at:", phase, detail, e);
 }
 
-function extForFile(file: File): string {
-  const n = file.name.toLowerCase();
-  if (n.endsWith(".png")) return "png";
-  if (n.endsWith(".webp")) return "webp";
-  if (n.endsWith(".heic")) return "heic";
-  if (n.endsWith(".heif")) return "heif";
-  const base = mimeBase(file);
-  if (base === "image/png") return "png";
-  if (base === "image/webp") return "webp";
-  if (base === "image/heic" || base === "image/heif") return "heic";
-  return "jpg";
-}
+type RegisterJson = {
+  previewUrl?: unknown;
+  imagesDataUrl?: unknown;
+  photoCount?: unknown;
+};
 
-/** Upload photos → zip on FAL + preview URL (first image). No generation yet. */
+/**
+ * Persists FAL CDN URLs after the client uploaded bytes directly to FAL.
+ * JSON body only — avoids Vercel's ~4.5MB serverless request limit on multipart training bundles.
+ */
 export async function POST(req: Request) {
+  const ct = req.headers.get("content-type") ?? "";
+  console.log("[upload/register] POST", {
+    contentType: ct.slice(0, 120),
+  });
+
   try {
-    let falKey: string;
-    try {
-      falKey = requireEnv("FAL_KEY");
-    } catch (e) {
-      logUnknownError("env:FAL_KEY", e);
-      return jsonErr(500, "Server configuration error.");
+    if (!ct.includes("application/json")) {
+      console.error(
+        "[upload/register] rejected non-JSON — large multipart uploads exceed Vercel body limits; client must use direct FAL upload + this JSON endpoint",
+      );
+      return jsonErr(
+        415,
+        "Use Content-Type: application/json with previewUrl, imagesDataUrl, and photoCount (client uploads files to FAL first).",
+      );
     }
 
-    fal.config({ credentials: falKey });
-
-    let form: FormData;
+    let parsed: RegisterJson;
     try {
-      form = await req.formData();
+      parsed = (await req.json()) as RegisterJson;
     } catch (e) {
-      logUnknownError("parseFormData", e);
-      return jsonErr(400, "Could not read upload body.", {
-        hint: "request_too_large_or_corrupt",
+      logUnknownError("req.json", e);
+      return jsonErr(400, "Invalid JSON body.");
+    }
+
+    const previewUrl =
+      typeof parsed.previewUrl === "string" ? parsed.previewUrl.trim() : "";
+    const imagesDataUrl =
+      typeof parsed.imagesDataUrl === "string"
+        ? parsed.imagesDataUrl.trim()
+        : "";
+    const photoCount =
+      typeof parsed.photoCount === "number" && Number.isFinite(parsed.photoCount)
+        ? Math.floor(parsed.photoCount)
+        : NaN;
+
+    if (!previewUrl || !imagesDataUrl) {
+      console.error("[upload/register] missing urls", {
+        hasPreview: Boolean(previewUrl),
+        hasZip: Boolean(imagesDataUrl),
       });
+      return jsonErr(400, "Missing previewUrl or imagesDataUrl.");
     }
 
-    const raw = form.getAll("files");
-    const files = raw.filter((x): x is File => x instanceof File);
+    if (!isTrustedFalStorageUrl(previewUrl) || !isTrustedFalStorageUrl(imagesDataUrl)) {
+      console.error("[upload/register] untrusted URL hosts rejected");
+      return jsonErr(400, "Invalid storage URLs.");
+    }
 
-    if (files.length < MIN_PHOTOS) {
+    if (
+      Number.isNaN(photoCount) ||
+      photoCount < MIN_PHOTOS ||
+      photoCount > MAX_PHOTOS
+    ) {
       return jsonErr(
         400,
-        `Please upload at least ${MIN_PHOTOS} photos (you sent ${files.length}).`,
-      );
-    }
-    if (files.length > MAX_PHOTOS) {
-      return jsonErr(
-        400,
-        `Please upload at most ${MAX_PHOTOS} photos (you sent ${files.length}).`,
-      );
-    }
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (!isAllowedImage(file)) {
-        return jsonErr(
-          400,
-          `Photo ${i + 1}: use JPG, PNG, HEIC, HEIF, or WebP.`,
-        );
-      }
-    }
-
-    let previewUrl: string;
-    try {
-      console.log("[upload/register] FAL storage: uploading preview (first file)", {
-        name: files[0].name,
-        size: files[0].size,
-        type: files[0].type,
-      });
-      previewUrl = await fal.storage.upload(files[0]);
-      console.log("[upload/register] FAL preview OK", {
-        previewUrl: previewUrl.slice(0, 80),
-      });
-    } catch (e) {
-      logUnknownError("fal.storage.upload(preview)", e);
-      return jsonErr(
-        500,
-        "Could not store preview image. Please try again.",
-      );
-    }
-
-    let imagesDataUrl: string;
-    try {
-      const zip = new JSZip();
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const buf = Buffer.from(await file.arrayBuffer());
-        const ext = extForFile(file);
-        zip.file(`portr_${String(i + 1).padStart(2, "0")}.${ext}`, buf);
-      }
-
-      const zipped = await zip.generateAsync({
-        type: "nodebuffer",
-        compression: "DEFLATE",
-      });
-
-      const zipBytes = new Uint8Array(zipped);
-      const zipBlob = new Blob([zipBytes], { type: "application/zip" });
-      const zipFile = new File([zipBlob], "portr-training.zip", {
-        type: "application/zip",
-      });
-      console.log("[upload/register] FAL storage: uploading zip", {
-        zipBytes: zipBytes.length,
-      });
-      imagesDataUrl = await fal.storage.upload(zipFile);
-      console.log("[upload/register] FAL zip OK", {
-        imagesDataUrl: imagesDataUrl.slice(0, 80),
-      });
-    } catch (e) {
-      logUnknownError("fal.storage.upload(zip)", e);
-      return jsonErr(
-        500,
-        "Could not package or store your photos. Please try again.",
+        `photoCount must be between ${MIN_PHOTOS} and ${MAX_PHOTOS} (got ${String(parsed.photoCount)}).`,
       );
     }
 
@@ -194,6 +113,7 @@ export async function POST(req: Request) {
       return jsonErr(500, "Could not save upload session. Please try again.");
     }
 
+    console.log("[upload/register] OK", { uploadToken, photoCount });
     return Response.json({ uploadToken, previewUrl });
   } catch (e) {
     logUnknownError("POST(unhandled)", e);

@@ -2,6 +2,12 @@
 
 import { SiteShell } from "@/components/SiteShell";
 import { Button, cn, Panel } from "@/components/ui";
+import {
+  buildTrainingZipBlob,
+  falInitiateUploadMeta,
+  registerUploadSession,
+  xhrPutWithProgress,
+} from "@/lib/upload-client";
 import { PRODUCT } from "@/lib/types-order";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -51,71 +57,6 @@ function shortFileName(name: string, max = 28): string {
   const base = ext ? name.slice(0, name.length - ext.length) : name;
   const keep = max - ext.length - 1;
   return `${base.slice(0, Math.max(4, keep))}…${ext}`;
-}
-
-function uploadWithProgress(
-  form: FormData,
-  onProgress: (pct: number) => void,
-): Promise<{ uploadToken: string; previewUrl: string }> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload/register");
-    xhr.responseType = "text";
-
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && e.total > 0) {
-        onProgress(Math.min(100, Math.round((100 * e.loaded) / e.total)));
-      }
-    };
-
-    xhr.onload = () => {
-      const raw = xhr.responseText ?? "";
-      let json: unknown;
-      try {
-        json = raw ? JSON.parse(raw) : null;
-      } catch {
-        console.error("[upload] Non-JSON response", {
-          status: xhr.status,
-          snippet: raw.slice(0, 500),
-        });
-        reject(new Error("Upload failed (invalid server response)."));
-        return;
-      }
-
-      const body = json as
-        | { uploadToken: string; previewUrl: string }
-        | { error: string }
-        | null;
-
-      if (xhr.status < 200 || xhr.status >= 300) {
-        reject(
-          new Error(
-            body && typeof body === "object" && "error" in body && body.error
-              ? String(body.error)
-              : `Upload failed (${xhr.status})`,
-          ),
-        );
-        return;
-      }
-
-      if (!body || !("uploadToken" in body)) {
-        reject(
-          new Error(
-            body && typeof body === "object" && "error" in body && body.error
-              ? String(body.error)
-              : "Upload failed",
-          ),
-        );
-        return;
-      }
-
-      resolve({ uploadToken: body.uploadToken, previewUrl: body.previewUrl });
-    };
-
-    xhr.onerror = () => reject(new Error("Network error during upload."));
-    xhr.onabort = () => reject(new Error("Upload cancelled."));
-    xhr.send(form);
-  });
 }
 
 export default function UploadPage() {
@@ -227,15 +168,58 @@ export default function UploadPage() {
       return;
     }
 
+    const files = items.map((x) => x.file);
+    const photoCount = files.length;
+
+    /** Progress weights: preview PUT → zip build → zip PUT → JSON register (tiny). */
+    const W_PREVIEW = 0.14;
+    const W_BUILD = 0.06;
+    const W_ZIP = 0.72;
+    const W_REG = 0.08;
+
+    const bump = (t: number) =>
+      setUploadPct(Math.min(100, Math.round(t * 100)));
+
     setLoading(true);
     setUploadPct(0);
     try {
-      const form = new FormData();
-      for (const { file } of items) {
-        form.append("files", file);
-      }
+      const first = files[0];
+      const previewInit = await falInitiateUploadMeta(
+        first.name || "preview.jpg",
+        first.type || "application/octet-stream",
+      );
+      await xhrPutWithProgress(
+        previewInit.uploadUrl,
+        first,
+        first.type || "application/octet-stream",
+        (f) => bump(f * W_PREVIEW),
+      );
+      const previewUrl = previewInit.fileUrl;
+      bump(W_PREVIEW);
 
-      const body = await uploadWithProgress(form, (p) => setUploadPct(p));
+      bump(W_PREVIEW + 0.01);
+      const zipBlob = await buildTrainingZipBlob(files);
+      bump(W_PREVIEW + W_BUILD);
+
+      const zipInit = await falInitiateUploadMeta(
+        "portr-training.zip",
+        "application/zip",
+      );
+      await xhrPutWithProgress(
+        zipInit.uploadUrl,
+        zipBlob,
+        "application/zip",
+        (f) => bump(W_PREVIEW + W_BUILD + f * W_ZIP),
+      );
+      const imagesDataUrl = zipInit.fileUrl;
+
+      bump(W_PREVIEW + W_BUILD + W_ZIP);
+      const body = await registerUploadSession({
+        previewUrl,
+        imagesDataUrl,
+        photoCount,
+      });
+      bump(W_PREVIEW + W_BUILD + W_ZIP + W_REG);
 
       try {
         sessionStorage.setItem("portr_upload_token", body.uploadToken);
