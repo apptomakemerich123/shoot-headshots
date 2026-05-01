@@ -169,15 +169,25 @@ export default function ProcessingClient() {
           ) : null}
 
           <Panel className="mt-8 w-full max-w-sm p-6 text-left">
-            <p className="font-medium text-white">{phaseLabel}</p>
-            <p className="mt-2 text-sm leading-relaxed text-white/55">
-              {phaseDetail}
-            </p>
+            <div className="flex items-start gap-3">
+              <div
+                className="relative mt-0.5 h-5 w-5 shrink-0"
+                aria-hidden
+              >
+                <div className="absolute inset-0 animate-spin rounded-full border-2 border-white/18 border-t-white/90" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-white">{phaseLabel}</p>
+                <p className="mt-2 text-sm leading-relaxed text-white/55">
+                  {phaseDetail}
+                </p>
+              </div>
+            </div>
           </Panel>
 
           <p className="mt-8 max-w-sm text-xs leading-relaxed text-white/40">
-            This page refreshes status every {POLL_MS / 1000} seconds. You can
-            also return anytime via your Stripe receipt link.
+            We&apos;ll email you when ready. You can also tap the link in your
+            Stripe receipt to return here anytime.
           </p>
         </div>
       </div>
