@@ -13,7 +13,32 @@ export const maxDuration = 120;
 const MIN_PHOTOS = 10;
 const MAX_PHOTOS = 20;
 const MIN_BYTES = 200 * 1024;
-const ALLOWED = new Set(["image/jpeg", "image/png"]);
+const ALLOWED = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/pjpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
+
+function mimeBase(file: File): string {
+  return (file.type ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
+function extMatchesPhonePhoto(name: string): boolean {
+  return /\.(jpe?g|png|heic|heif|webp)$/i.test(name);
+}
+
+function isAllowedImage(file: File): boolean {
+  const base = mimeBase(file);
+  if (ALLOWED.has(base)) return true;
+  if (base === "" || base === "application/octet-stream") {
+    return extMatchesPhonePhoto(file.name);
+  }
+  return false;
+}
 
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -21,8 +46,16 @@ function requireEnv(name: string) {
   return v;
 }
 
-function extForMime(mime: string): string {
-  if (mime === "image/png") return "png";
+function extForFile(file: File): string {
+  const n = file.name.toLowerCase();
+  if (n.endsWith(".png")) return "png";
+  if (n.endsWith(".webp")) return "webp";
+  if (n.endsWith(".heic")) return "heic";
+  if (n.endsWith(".heif")) return "heif";
+  const base = mimeBase(file);
+  if (base === "image/png") return "png";
+  if (base === "image/webp") return "webp";
+  if (base === "image/heic" || base === "image/heif") return "heic";
   return "jpg";
 }
 
@@ -54,9 +87,11 @@ export async function POST(req: Request) {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (!ALLOWED.has(file.type)) {
+      if (!isAllowedImage(file)) {
         return Response.json(
-          { error: `Photo ${i + 1}: use JPG or PNG only.` },
+          {
+            error: `Photo ${i + 1}: use JPG, PNG, HEIC, HEIF, or WebP.`,
+          },
           { status: 400 },
         );
       }
@@ -76,7 +111,7 @@ export async function POST(req: Request) {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const buf = Buffer.from(await file.arrayBuffer());
-      const ext = extForMime(file.type);
+      const ext = extForFile(file);
       zip.file(`portr_${String(i + 1).padStart(2, "0")}.${ext}`, buf);
     }
 

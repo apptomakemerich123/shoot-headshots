@@ -51,7 +51,15 @@ export default function CheckoutClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ uploadToken }),
       });
-      const json = (await res.json()) as { url?: string; error?: string };
+      const raw = await res.text();
+      let json: { url?: string; error?: string };
+      try {
+        json = raw ? (JSON.parse(raw) as { url?: string; error?: string }) : {};
+      } catch {
+        throw new Error(
+          res.ok ? "Invalid response from server." : "Could not start checkout",
+        );
+      }
       if (!res.ok || !json.url) {
         throw new Error(json.error ?? "Could not start checkout");
       }
