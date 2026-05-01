@@ -51,10 +51,6 @@ export default function Home() {
                 How it works
               </a>
             </div>
-            <p className="mt-4 text-xs text-white/45">
-              Tip: use 10–20 recent front-facing photos with good lighting and neutral
-              backgrounds for best results.
-            </p>
           </div>
         </div>
       </section>
