@@ -8,8 +8,9 @@ export default function RefundPage() {
           Refund Policy
         </h1>
         <p className="mt-6 text-sm leading-7 text-white/75">
-          Not happy with your headshots? Email getportr@gmail.com within 7 days
-          and we&apos;ll give you a full refund. No questions asked.
+          We offer a full refund if you are unsatisfied with your results.
+          Refund requests must be made within 7 days of delivery. We reserve the
+          right to decline refunds where results have been downloaded and used.
         </p>
       </div>
     </SiteShell>
