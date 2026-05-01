@@ -8,7 +8,9 @@ import { useRouter } from "next/navigation";
 
 const MIN_COUNT = 10;
 const MAX_COUNT = 20;
-const MIN_BYTES = 200 * 1024;
+/** Reject only very tiny files (icons/thumbnails); screenshots often land under 200KB. */
+const MIN_FILE_KB = 100;
+const MIN_BYTES = MIN_FILE_KB * 1024;
 
 const ALLOWED_MIME = new Set([
   "image/jpeg",
@@ -38,7 +40,7 @@ function validateImageFile(f: File, index: number): string | null {
     return `Photo ${index + 1}: use JPG, PNG, HEIC, HEIF, or WebP.`;
   }
   if (f.size < MIN_BYTES) {
-    return `Photo ${index + 1} is too small (under 200KB). Use a clearer file.`;
+    return `Photo ${index + 1} is too small (under ${MIN_FILE_KB}KB). Try a less compressed export or full-resolution shot.`;
   }
   return null;
 }

@@ -12,7 +12,9 @@ export const maxDuration = 120;
 
 const MIN_PHOTOS = 10;
 const MAX_PHOTOS = 20;
-const MIN_BYTES = 200 * 1024;
+/** Match client upload page — allow smaller screenshots; still block tiny thumbnails. */
+const MIN_FILE_KB = 100;
+const MIN_BYTES = MIN_FILE_KB * 1024;
 const ALLOWED = new Set([
   "image/jpeg",
   "image/jpg",
@@ -98,7 +100,7 @@ export async function POST(req: Request) {
       if (file.size < MIN_BYTES) {
         return Response.json(
           {
-            error: `Photo ${i + 1} is too small (under 200KB). Use a clearer, higher-quality file.`,
+            error: `Photo ${i + 1} is too small (under ${MIN_FILE_KB}KB). Try a less compressed export or full-resolution shot.`,
           },
           { status: 400 },
         );
