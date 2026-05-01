@@ -3,10 +3,32 @@
 import { SiteShell } from "@/components/SiteShell";
 import { Panel } from "@/components/ui";
 import { PRODUCT, type OrderRecord } from "@/lib/types-order";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const POLL_MS = 10_000;
+
+const LS_PROCESSING_START_PREFIX = "portr_processing_started_at_";
+
+function processingStartedAtKey(sessionId: string): string {
+  return `${LS_PROCESSING_START_PREFIX}${sessionId}`;
+}
+
+function readOrInitProcessingStart(sessionId: string): number {
+  const key = processingStartedAtKey(sessionId);
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw !== null) {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    const now = Date.now();
+    localStorage.setItem(key, String(now));
+    return now;
+  } catch {
+    return Date.now();
+  }
+}
 /** Typical wall-clock range shown to users (training + generation). */
 const ETA_MIN_MINUTES = 15;
 const ETA_MAX_MINUTES = 25;
@@ -37,16 +59,18 @@ export default function ProcessingClient() {
   const [order, setOrder] = useState<OrderRecord | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const startedAtRef = useRef<number | null>(null);
 
+  /** Persist start time per checkout session so refresh does not reset the clock. */
   useEffect(() => {
-    if (startedAtRef.current === null) startedAtRef.current = Date.now();
-    const id = window.setInterval(() => {
-      if (startedAtRef.current)
-        setElapsedMs(Date.now() - startedAtRef.current);
-    }, 1000);
+    if (!sessionId || !sessionId.startsWith("cs_")) return;
+
+    const startMs = readOrInitProcessingStart(sessionId);
+
+    const tick = () => setElapsedMs(Date.now() - startMs);
+    tick();
+    const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [sessionId]);
 
   useEffect(() => {
     if (!sessionId || !sessionId.startsWith("cs_")) return;
@@ -149,15 +173,15 @@ export default function ProcessingClient() {
             </div>
           </div>
 
-          {/* Estimated time */}
+          {/* Estimated time + elapsed (start time persisted in localStorage) */}
           <div className="mt-10 w-full max-w-sm rounded-2xl border border-white/[0.1] bg-white/[0.04] px-5 py-4 text-left backdrop-blur-sm">
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/45">
-              Estimated time
+              Progress
             </p>
-            <p className="mt-2 font-medium tabular-nums text-white">
-              Typically {ETA_MIN_MINUTES}–{ETA_MAX_MINUTES} minutes
+            <p className="mt-2 text-sm leading-relaxed text-white/75">
+              Usually completes in {ETA_MIN_MINUTES}–{ETA_MAX_MINUTES} minutes.
             </p>
-            <p className="mt-1.5 text-sm text-white/50">
+            <p className="mt-3 font-medium tabular-nums text-white">
               Elapsed: {formatElapsed(elapsedMs)}
             </p>
           </div>
