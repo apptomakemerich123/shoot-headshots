@@ -86,7 +86,7 @@ export async function createAstriaTune(params: {
   fd.append("tune[title]", sessionId);
   fd.append("tune[name]", sessionId);
   fd.append("tune[base_tune_id]", String(ASTRIA_BASE_TUNE_ID));
-  fd.append("tune[branch]", "fast");
+  fd.append("tune[branch]", "flux1");
   fd.append("tune[token]", "ohwx");
   fd.append("tune[model_type]", "lora");
   fd.append("tune[callback]", astriaTuneWebhookUrl(sessionId));
