@@ -6,7 +6,7 @@ import type { OrderGender, OrderRecord, UploadRecord } from "@/lib/types-order";
 
 export const runtime = "nodejs";
 
-/** Submit training to FAL queue and return quickly (Hobby max 300s). */
+/** Submit Astria fine-tune and return quickly (Hobby max 300s). */
 export const maxDuration = 300;
 
 function stripeSecret() {
@@ -16,7 +16,7 @@ function stripeSecret() {
 }
 
 /**
- * Validates payment and marks processing, then enqueues LoRA training on the FAL queue.
+ * Validates payment and marks processing, then starts Astria fine-tuning (webhook-driven generation).
  */
 export async function POST(req: Request) {
   let body: { sessionId?: string };

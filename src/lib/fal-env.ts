@@ -1,5 +1,5 @@
 /**
- * Resolve FAL API credentials the same way as @fal-ai/client (FAL_KEY or FAL_KEY_ID + FAL_KEY_SECRET).
+ * Resolve FAL API credentials for storage REST (`FAL_KEY` or `FAL_KEY_ID` + `FAL_KEY_SECRET`).
  */
 export function getFalKeyFromEnv(): string {
   const single = process.env.FAL_KEY?.trim();

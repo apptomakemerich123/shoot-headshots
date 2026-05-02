@@ -3,7 +3,7 @@ export type OrderGender = "man" | "woman";
 
 /** Upload session after multi-photo registration (zip on FAL + preview image). */
 export type UploadRecord = {
-  /** Public URL to zip of training images (`images_data_url` for LoRA training). */
+  /** Public URL to zip of training images (uploaded to FAL CDN for direct browser PUT). */
   imagesDataUrl: string;
   /** First photo URL for checkout preview. */
   previewUrl: string;
@@ -20,12 +20,14 @@ export type OrderRecord = {
   status: OrderStatus;
   /** Copied from upload at checkout — drives variation prompt leads. */
   gender?: OrderGender;
-  /** Zip URL used for LoRA training (optional once finished / for debugging). */
+  /** Zip URL on FAL CDN — downloaded server-side for Astria fine-tuning. */
   imagesDataUrl?: string;
-  /** FAL queue request id after `fal.queue.submit` for LoRA training. */
-  trainingRequestId?: string;
-  /** Populated when training queue completes (before image generation). */
-  loraWeightsUrl?: string;
+  /** Astria fine-tune id after `POST /tunes`. */
+  astriaTuneId?: number;
+  /** Set after the tune webhook enqueues 40 `POST /tunes/:id/prompts` jobs. */
+  astriaPromptsSubmitted?: boolean;
+  /** Slots 0..39 filled as Astria prompt callbacks arrive (order matches `buildVariationList`). */
+  astriaPromptSlots?: (string | null)[];
   /** Single preview thumb from upload bundle. */
   previewUrl?: string;
   imageUrls?: string[];

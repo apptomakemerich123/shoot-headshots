@@ -3,7 +3,7 @@ import { advanceOrderFromQueue } from "@/lib/order-pipeline";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-/** Advance async LoRA + generation pipeline and return latest order state (poll from UI). */
+/** Return latest order state; ensures Astria tune submit was attempted (poll from UI). */
 export async function GET(req: Request) {
   const sessionId = new URL(req.url).searchParams.get("session_id");
   if (!sessionId?.startsWith("cs_")) {

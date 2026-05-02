@@ -4,9 +4,11 @@ Next.js app: upload one photo, pay once, get **40** AI headshot variations (stor
 
 ### Run locally
 
-1. Add your FAL key to `.env.local`:
+1. Add secrets to `.env.local`:
 
-- `FAL_KEY="key_id:key_secret"`
+- `FAL_KEY="key_id:key_secret"` — browser uploads zip/preview to FAL CDN only.
+- `ASTRIA_API_KEY="sd_..."` — Astria fine-tuning + headshot generation.
+- `ASTRIA_WEBHOOK_BASE="https://xxxx.ngrok-free.app"` — required so Astria can `POST` tune/prompt callbacks when not on Vercel (or set `NEXT_PUBLIC_APP_URL` to the same HTTPS origin).
 
 2. Install and run:
 
@@ -22,9 +24,14 @@ Open `http://localhost:3000`.
 - Set `STRIPE_SECRET_KEY` for Checkout ($29 product configured in code).
 - Without KV, uploads/orders persist in `.data/portr-store.json` locally. Use `PORT_MEMORY_STORE_ONLY=1` only if you explicitly want RAM-only storage.
 
+### Astria callbacks
+
+- Production: deploy on Vercel so `VERCEL_URL` resolves; tune + prompt webhooks hit **`/api/webhook/astria`** automatically (query params include Stripe `session_id`).
+- Add **`ASTRIA_API_KEY`** in Vercel environment variables.
+
 ### Resend (ready email)
 
-- Set `RESEND_API_KEY` so customers get the ready email after generation (Stripe **`POST /api/webhook`** or `/api/order/complete` job).
+- Set `RESEND_API_KEY` so customers get the ready email after all 40 images land (Astria **`POST /api/webhook/astria`** completes the order; Stripe **`POST /api/webhook`** starts training).
 - Ready emails link to **`https://www.getportr.com/results/{session_id}`** by default. Override with `EMAIL_RESULTS_ORIGIN` (e.g. `http://localhost:3000`) for local testing.
 - Stripe Dashboard: endpoint URL **`https://www.getportr.com/api/webhook`** (or your deploy URL + `/api/webhook`), event **`checkout.session.completed`**.
 

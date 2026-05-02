@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Portr — AI Professional Headshots",
   description:
-    "Upload 10–20 photos. Get twelve AI headshot variations after LoRA training — backgrounds, lighting, and crops.",
+    "Upload your photos. Get 40 AI headshot variations after fine-tuning — backgrounds, lighting, and wardrobe.",
 };
 
 export default function RootLayout({
