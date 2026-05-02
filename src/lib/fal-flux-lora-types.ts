@@ -43,6 +43,8 @@ export type FluxLoraGenerationInput = {
     | "landscape_16_9";
   num_inference_steps?: number;
   guidance_scale?: number;
+  /** Some fal-ai/flux-lora deployments accept a global LoRA scale alias. */
+  lora_scale?: number;
   loras?: Array<{ path: string; scale?: number; force?: boolean }>;
   enable_safety_checker?: boolean;
   output_format?: "jpeg" | "png";

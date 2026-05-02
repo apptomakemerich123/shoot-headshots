@@ -2,7 +2,7 @@ import Stripe from "stripe";
 
 import { submitTrainingForOrder } from "@/lib/order-pipeline";
 import { storeGet, storeKeys, storeSet } from "@/lib/store";
-import type { OrderRecord } from "@/lib/types-order";
+import type { OrderGender, OrderRecord, UploadRecord } from "@/lib/types-order";
 
 export const runtime = "nodejs";
 
@@ -61,13 +61,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const upload = await storeGet<{
-    imagesDataUrl: string;
-    previewUrl: string;
-  }>(storeKeys.upload(uploadToken));
+  const upload = await storeGet<UploadRecord>(storeKeys.upload(uploadToken));
   if (!upload?.imagesDataUrl) {
     return Response.json({ error: "Upload expired or missing" }, { status: 400 });
   }
+
+  const gender: OrderGender = upload.gender ?? "man";
 
   const email =
     session.customer_details?.email ?? session.customer_email ?? null;
@@ -84,6 +83,7 @@ export async function POST(req: Request) {
 
   await storeSet(storeKeys.order(sessionId), {
     status: "processing",
+    gender,
     imagesDataUrl: upload.imagesDataUrl,
     previewUrl: upload.previewUrl,
     customerEmail: email,

@@ -110,7 +110,8 @@ export async function advanceOrderFromQueue(
     }
 
     if (cur.loraWeightsUrl) {
-      const specs = buildVariationList(PRODUCT.count);
+      const gender = cur.gender ?? "man";
+      const specs = buildVariationList(PRODUCT.count, gender);
       const urls = cur.imageUrls ?? [];
       const nextIndex = urls.length;
       if (nextIndex < specs.length) {
@@ -130,6 +131,7 @@ export async function advanceOrderFromQueue(
         if (nextUrls.length >= PRODUCT.count) {
           const ready: OrderRecord = {
             status: "ready",
+            gender: cur.gender,
             imagesDataUrl: cur.imagesDataUrl,
             previewUrl: cur.previewUrl,
             trainingRequestId: cur.trainingRequestId,
@@ -167,6 +169,7 @@ export async function advanceOrderFromQueue(
     const last = await storeGet<OrderRecord>(storeKeys.order(sessionId));
     await storeSet(storeKeys.order(sessionId), {
       status: "failed",
+      gender: last?.gender,
       imagesDataUrl: last?.imagesDataUrl,
       previewUrl: last?.previewUrl,
       customerEmail: last?.customerEmail,

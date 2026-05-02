@@ -1,4 +1,12 @@
-/** 40 distinct looks: varied backgrounds + clothing. Copy is gender-neutral ("person"); FAL flux-pulid has no gender API field. */
+import type { OrderGender } from "@/lib/types-order";
+
+/** Leading clause for every preset — trigger + professional gender (see `buildVariationList`). */
+export function variationPromptLead(gender: OrderGender): string {
+  const role = gender === "woman" ? "woman" : "man";
+  return `ohwx person, professional ${role}, `;
+}
+
+/** 40 distinct looks: varied backgrounds + clothing. Gender-neutral scene copy; gender is prefixed in `buildVariationList`. */
 export type BackgroundStyle =
   | "professional"
   | "corporate"
@@ -384,7 +392,11 @@ const BASE_PRESETS: VariationSpec[] = [
   },
 ];
 
-export function buildVariationList(count: number): VariationSpec[] {
+export function buildVariationList(
+  count: number,
+  gender: OrderGender,
+): VariationSpec[] {
+  const lead = variationPromptLead(gender);
   const out: VariationSpec[] = [];
   for (let i = 0; i < count; i++) {
     const base = BASE_PRESETS[i % BASE_PRESETS.length];
@@ -392,7 +404,7 @@ export function buildVariationList(count: number): VariationSpec[] {
       background_style: base.background_style,
       aspect_ratio: base.aspect_ratio,
       image_size: base.image_size,
-      prompt: base.prompt,
+      prompt: `${lead}${base.prompt}`,
       label: `${base.label} (#${i + 1})`,
     });
   }

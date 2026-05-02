@@ -1,3 +1,4 @@
+import type { OrderGender } from "@/lib/types-order";
 import JSZip from "jszip";
 
 function mimeBase(f: File): string {
@@ -113,6 +114,7 @@ export async function registerUploadSession(payload: {
   previewUrl: string;
   imagesDataUrl: string;
   photoCount: number;
+  gender: OrderGender;
 }): Promise<{ uploadToken: string; previewUrl: string }> {
   const res = await fetch("/api/upload/register", {
     method: "POST",

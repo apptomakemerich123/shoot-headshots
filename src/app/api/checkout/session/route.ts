@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 
 import { storeGet, storeKeys } from "@/lib/store";
-import type { UploadRecord } from "@/lib/types-order";
+import type { OrderGender, UploadRecord } from "@/lib/types-order";
 import { PRODUCT } from "@/lib/types-order";
 
 export const runtime = "nodejs";
@@ -36,6 +36,8 @@ export async function POST(req: Request) {
     return Response.json({ error: "Upload not found — start over" }, { status: 400 });
   }
 
+  const gender: OrderGender = upload.gender ?? "man";
+
   const stripe = new Stripe(key);
   const origin = getOrigin(req);
 
@@ -56,6 +58,7 @@ export async function POST(req: Request) {
     ],
     metadata: {
       uploadToken,
+      gender,
     },
     success_url: `${origin}/processing?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/upload`,

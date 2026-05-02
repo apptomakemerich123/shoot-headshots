@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 
 import { isTrustedFalStorageUrl } from "@/lib/fal-env";
 import { storeKeys, storeSet } from "@/lib/store";
-import type { UploadRecord } from "@/lib/types-order";
+import type { OrderGender, UploadRecord } from "@/lib/types-order";
 
 export const runtime = "nodejs";
 
@@ -32,6 +32,7 @@ type RegisterJson = {
   previewUrl?: unknown;
   imagesDataUrl?: unknown;
   photoCount?: unknown;
+  gender?: unknown;
 };
 
 /**
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
       );
       return jsonErr(
         415,
-        "Use Content-Type: application/json with previewUrl, imagesDataUrl, and photoCount (client uploads files to FAL first).",
+        "Use Content-Type: application/json with previewUrl, imagesDataUrl, photoCount, and gender (client uploads files to FAL first).",
       );
     }
 
@@ -73,6 +74,13 @@ export async function POST(req: Request) {
       typeof parsed.photoCount === "number" && Number.isFinite(parsed.photoCount)
         ? Math.floor(parsed.photoCount)
         : NaN;
+
+    const genderRaw = parsed.gender;
+    const gender: OrderGender | null =
+      genderRaw === "man" || genderRaw === "woman" ? genderRaw : null;
+    if (!gender) {
+      return jsonErr(400, 'gender must be "man" or "woman".');
+    }
 
     if (!previewUrl || !imagesDataUrl) {
       console.error("[upload/register] missing urls", {
@@ -103,6 +111,7 @@ export async function POST(req: Request) {
     const record: UploadRecord = {
       imagesDataUrl,
       previewUrl,
+      gender,
       createdAt: Date.now(),
     };
 
@@ -113,7 +122,7 @@ export async function POST(req: Request) {
       return jsonErr(500, "Could not save upload session. Please try again.");
     }
 
-    console.log("[upload/register] OK", { uploadToken, photoCount });
+    console.log("[upload/register] OK", { uploadToken, photoCount, gender });
     return Response.json({ uploadToken, previewUrl });
   } catch (e) {
     logUnknownError("POST(unhandled)", e);

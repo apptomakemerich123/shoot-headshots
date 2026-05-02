@@ -81,15 +81,16 @@ export async function generateSingleFluxHeadshot(
   spec: VariationSpec,
 ): Promise<string> {
   fal.config({ credentials: requireEnv("FAL_KEY") });
-  /** Trigger phrase must lead every prompt for consistent identity conditioning. */
-  const prompt = `${LORA_TRIGGER_WORD}, ${PHOTO_PREFIX}${PHOTO_REALISM_BLOCK}${WARDROBE_PREFIX}${spec.prompt}`;
+  /** `spec.prompt` already begins with `ohwx person, professional man/woman, ` from `buildVariationList`. */
+  const prompt = `${PHOTO_PREFIX}${PHOTO_REALISM_BLOCK}${WARDROBE_PREFIX}${spec.prompt}`;
 
   const input: FluxLoraGenerationInput = {
     prompt,
     image_size: spec.image_size as FluxLoraGenerationInput["image_size"],
     num_inference_steps: 28,
-    guidance_scale: 7,
-    loras: [{ path: loraWeightsUrl, scale: 1 }],
+    guidance_scale: 3.5,
+    lora_scale: 1.0,
+    loras: [{ path: loraWeightsUrl, scale: 1.0 }],
     enable_safety_checker: true,
     output_format: "jpeg",
     num_images: 1,

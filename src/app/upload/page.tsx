@@ -8,6 +8,7 @@ import {
   registerUploadSession,
   xhrPutWithProgress,
 } from "@/lib/upload-client";
+import type { OrderGender } from "@/lib/types-order";
 import { PRODUCT } from "@/lib/types-order";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -70,6 +71,7 @@ export default function UploadPage() {
   const [brokenPreviewIds, setBrokenPreviewIds] = useState(
     () => new Set<string>(),
   );
+  const [gender, setGender] = useState<OrderGender | null>(null);
 
   const count = items.length;
 
@@ -214,15 +216,24 @@ export default function UploadPage() {
       const imagesDataUrl = zipInit.fileUrl;
 
       bump(W_PREVIEW + W_BUILD + W_ZIP);
+      if (!gender) {
+        setError("Please select whether your photos are of a man or a woman.");
+        setLoading(false);
+        setUploadPct(0);
+        return;
+      }
+
       const body = await registerUploadSession({
         previewUrl,
         imagesDataUrl,
         photoCount,
+        gender,
       });
       bump(W_PREVIEW + W_BUILD + W_ZIP + W_REG);
 
       try {
         sessionStorage.setItem("portr_upload_token", body.uploadToken);
+        sessionStorage.setItem("portr_gender", gender);
       } catch {
         /* private mode etc. */
       }
@@ -236,7 +247,12 @@ export default function UploadPage() {
   }
 
   const needsMore = count < MIN_COUNT;
-  const canContinue = count >= MIN_COUNT && count <= MAX_COUNT && !loading;
+  const needsGender = gender === null;
+  const canContinue =
+    count >= MIN_COUNT &&
+    count <= MAX_COUNT &&
+    !needsGender &&
+    !loading;
 
   return (
     <SiteShell ctaHref="/" ctaLabel="Back home">
@@ -322,6 +338,51 @@ export default function UploadPage() {
               </span>
             </button>
 
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-5 text-left sm:px-5">
+              <p className="text-sm font-medium text-white">
+                Are you uploading photos of a man or woman?
+              </p>
+              <p className="mt-1 text-xs text-white/45">
+                Required — we use this for every generated headshot (order metadata).
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    setError(null);
+                    setGender("man");
+                  }}
+                  className={cn(
+                    "min-h-[44px] flex-1 rounded-full border px-5 py-3 text-sm font-medium transition sm:flex-none sm:min-w-[140px]",
+                    gender === "man"
+                      ? "border-white/45 bg-white/12 text-white"
+                      : "border-white/15 bg-white/[0.04] text-white/80 hover:border-white/25 hover:bg-white/[0.07]",
+                    loading && "pointer-events-none opacity-50",
+                  )}
+                >
+                  Man
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    setError(null);
+                    setGender("woman");
+                  }}
+                  className={cn(
+                    "min-h-[44px] flex-1 rounded-full border px-5 py-3 text-sm font-medium transition sm:flex-none sm:min-w-[140px]",
+                    gender === "woman"
+                      ? "border-white/45 bg-white/12 text-white"
+                      : "border-white/15 bg-white/[0.04] text-white/80 hover:border-white/25 hover:bg-white/[0.07]",
+                    loading && "pointer-events-none opacity-50",
+                  )}
+                >
+                  Woman
+                </button>
+              </div>
+            </div>
+
             {loading ? (
               <div className="mt-6 space-y-2">
                 <div className="flex justify-between text-xs text-white/55">
@@ -366,6 +427,11 @@ export default function UploadPage() {
             {needsMore && !loading ? (
               <p className="mt-3 text-sm text-white/50">
                 Continue is disabled until you have at least {MIN_COUNT} photos.
+              </p>
+            ) : null}
+            {!needsMore && needsGender && !loading ? (
+              <p className="mt-3 text-sm text-amber-200/85">
+                Choose man or woman above to continue — this is saved with your order.
               </p>
             ) : null}
           </div>

@@ -2,7 +2,7 @@ import Stripe from "stripe";
 
 import { submitTrainingForOrder } from "@/lib/order-pipeline";
 import { storeGet, storeKeys, storeSet } from "@/lib/store";
-import type { OrderRecord, UploadRecord } from "@/lib/types-order";
+import type { OrderGender, OrderRecord, UploadRecord } from "@/lib/types-order";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -74,6 +74,12 @@ export async function POST(req: Request) {
     return Response.json({ received: true });
   }
 
+  const gender: OrderGender =
+    upload.gender ??
+    (session.metadata?.gender === "woman" || session.metadata?.gender === "man"
+      ? session.metadata.gender
+      : "man");
+
   const email =
     session.customer_details?.email ?? session.customer_email ?? null;
   if (!email) {
@@ -89,6 +95,7 @@ export async function POST(req: Request) {
 
   await storeSet(storeKeys.order(sessionId), {
     status: "processing",
+    gender,
     imagesDataUrl: upload.imagesDataUrl,
     previewUrl: upload.previewUrl,
     customerEmail: email,
