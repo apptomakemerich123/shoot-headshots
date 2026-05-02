@@ -30,6 +30,11 @@ export async function submitTrainingForOrder(sessionId: string): Promise<void> {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Astria tune creation failed";
+    console.error(
+      "[order-pipeline] submitTrainingForOrder failed",
+      { sessionId },
+      e,
+    );
     const last = await storeGet<OrderRecord>(storeKeys.order(sessionId));
     await storeSet(storeKeys.order(sessionId), {
       status: "failed",

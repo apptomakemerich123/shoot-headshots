@@ -50,6 +50,19 @@ export async function POST(req: Request) {
   }
   if (existing?.status === "processing") {
     await submitTrainingForOrder(sessionId);
+    const afterTrain = await storeGet<OrderRecord>(storeKeys.order(sessionId));
+    if (afterTrain?.status === "failed") {
+      return Response.json(
+        {
+          ok: false,
+          status: "failed" as const,
+          error:
+            afterTrain.error ??
+            "We could not start training. Check server logs and Astria configuration.",
+        },
+        { status: 502 },
+      );
+    }
     return Response.json({ ok: true, status: "processing" as const });
   }
 
@@ -92,6 +105,20 @@ export async function POST(req: Request) {
   } satisfies OrderRecord);
 
   await submitTrainingForOrder(sessionId);
+
+  const afterTrain = await storeGet<OrderRecord>(storeKeys.order(sessionId));
+  if (afterTrain?.status === "failed") {
+    return Response.json(
+      {
+        ok: false,
+        status: "failed" as const,
+        error:
+          afterTrain.error ??
+          "We could not start training. Check server logs and Astria configuration.",
+      },
+      { status: 502 },
+    );
+  }
 
   return Response.json({ ok: true, status: "processing" as const });
 }

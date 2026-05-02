@@ -36,6 +36,16 @@ export async function POST(req: Request) {
     return Response.json({ error: "Upload not found — start over" }, { status: 400 });
   }
 
+  if (!upload.imagesDataUrl?.trim()) {
+    return Response.json(
+      {
+        error:
+          "Upload incomplete — finish uploading your photo zip before checkout.",
+      },
+      { status: 400 },
+    );
+  }
+
   const gender: OrderGender = upload.gender ?? "man";
 
   const stripe = new Stripe(key);

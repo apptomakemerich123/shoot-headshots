@@ -105,5 +105,14 @@ export async function POST(req: Request) {
 
   await submitTrainingForOrder(sessionId);
 
+  const afterTrain = await storeGet<OrderRecord>(storeKeys.order(sessionId));
+  if (afterTrain?.status === "failed") {
+    console.error(
+      "[stripe webhook] Astria tune failed after checkout",
+      sessionId,
+      afterTrain.error,
+    );
+  }
+
   return Response.json({ received: true, status: "processing" as const });
 }

@@ -1,6 +1,10 @@
 import JSZip from "jszip";
 
-import { getPublicAppBaseUrl } from "@/lib/app-base-url";
+import {
+  getPublicAppBaseUrl,
+  logAstriaWebhookEnvDiagnostics,
+  tryResolvePublicWebhookBase,
+} from "@/lib/app-base-url";
 import { isTrustedFalStorageUrl } from "@/lib/fal-env";
 import { PRODUCT } from "@/lib/types-order";
 import type { VariationSpec } from "@/lib/variations";
@@ -28,23 +32,25 @@ export function dimensionsFromVariation(spec: VariationSpec): { w: number; h: nu
   return { w: 1024, h: 1360 };
 }
 
-export function astriaTuneWebhookUrl(sessionId: string): string {
-  const base = getPublicAppBaseUrl();
+export function astriaTuneWebhookUrl(sessionId: string, baseUrl: string): string {
   const q = new URLSearchParams({
     session_id: sessionId,
     kind: "tune",
   });
-  return `${base}/api/webhook/astria?${q.toString()}`;
+  return `${baseUrl.replace(/\/$/, "")}/api/webhook/astria?${q.toString()}`;
 }
 
-export function astriaPromptWebhookUrl(sessionId: string, idx: number): string {
-  const base = getPublicAppBaseUrl();
+export function astriaPromptWebhookUrl(
+  sessionId: string,
+  idx: number,
+  baseUrl: string,
+): string {
   const q = new URLSearchParams({
     session_id: sessionId,
     kind: "prompt",
     idx: String(idx),
   });
-  return `${base}/api/webhook/astria?${q.toString()}`;
+  return `${baseUrl.replace(/\/$/, "")}/api/webhook/astria?${q.toString()}`;
 }
 
 async function fetchZipAsImageBlobs(zipUrl: string): Promise<Blob[]> {
@@ -81,7 +87,46 @@ export async function createAstriaTune(params: {
   zipUrl: string;
 }): Promise<number> {
   const { sessionId, zipUrl } = params;
-  const blobs = await fetchZipAsImageBlobs(zipUrl);
+
+  console.error("[astria tune] step=start", {
+    sessionId,
+    zipHostname: (() => {
+      try {
+        return new URL(zipUrl).hostname;
+      } catch {
+        return "(invalid zip URL)";
+      }
+    })(),
+  });
+
+  logAstriaWebhookEnvDiagnostics();
+  const webhookBase = tryResolvePublicWebhookBase();
+  if (!webhookBase.ok) {
+    console.error("[astria tune] step=webhook_base FAILED", webhookBase.message);
+    throw new Error(webhookBase.message);
+  }
+  console.error("[astria tune] step=webhook_base ok", {
+    source: webhookBase.source,
+    url: webhookBase.url,
+  });
+
+  console.error("[astria tune] step=api_key check");
+  requireAstriaApiKey();
+
+  const tuneCallback = astriaTuneWebhookUrl(sessionId, webhookBase.url);
+  console.error("[astria tune] step=callback_url", { tuneCallback });
+
+  console.error("[astria tune] step=download_zip");
+  let blobs: Blob[];
+  try {
+    blobs = await fetchZipAsImageBlobs(zipUrl);
+  } catch (e) {
+    console.error("[astria tune] step=download_zip FAILED", e);
+    throw e;
+  }
+  console.error("[astria tune] step=extract_images ok", { imageCount: blobs.length });
+
+  console.error("[astria tune] step=build_multipart");
   const fd = new FormData();
   fd.append("tune[title]", sessionId);
   fd.append("tune[name]", sessionId);
@@ -89,31 +134,57 @@ export async function createAstriaTune(params: {
   fd.append("tune[branch]", "flux1");
   fd.append("tune[token]", "ohwx");
   fd.append("tune[model_type]", "lora");
-  fd.append("tune[callback]", astriaTuneWebhookUrl(sessionId));
+  fd.append("tune[callback]", tuneCallback);
 
   for (let i = 0; i < blobs.length; i++) {
     const part = blobs[i]!;
     fd.append("tune[images][]", part, `train_${i}.jpg`);
   }
 
-  const res = await fetch(`${ASTRIA_API}/tunes`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${requireAstriaApiKey()}`,
-    },
-    body: fd,
-  });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
+  console.error("[astria tune] step=POST /tunes", { endpoint: `${ASTRIA_API}/tunes` });
+  let res: Response;
+  try {
+    res = await fetch(`${ASTRIA_API}/tunes`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${requireAstriaApiKey()}`,
+      },
+      body: fd,
+    });
+  } catch (e) {
+    console.error("[astria tune] step=POST /tunes network FAILED", e);
     throw new Error(
-      `Astria tune creation failed (${res.status}): ${errText.slice(0, 800)}`,
+      e instanceof Error
+        ? `Astria API unreachable: ${e.message}`
+        : "Astria API request failed",
     );
   }
 
-  const json = (await res.json()) as AstriaTuneCreateResult & { id?: number };
+  console.error("[astria tune] step=response", { httpStatus: res.status });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    console.error("[astria tune] step=response_body error", errText.slice(0, 1200));
+    throw new Error(
+      `Astria rejected the tune (${res.status}). ${errText.slice(0, 500)}`.trim(),
+    );
+  }
+
+  let json: AstriaTuneCreateResult & { id?: number };
+  try {
+    json = (await res.json()) as AstriaTuneCreateResult & { id?: number };
+  } catch (e) {
+    console.error("[astria tune] step=parse_json FAILED", e);
+    throw new Error("Astria returned a non-JSON response for tune creation");
+  }
+
   const id = typeof json.id === "number" ? json.id : Number(json.id);
-  if (!Number.isFinite(id)) throw new Error("Astria tune response missing numeric id");
+  if (!Number.isFinite(id)) {
+    console.error("[astria tune] step=parse_id FAILED raw=", json);
+    throw new Error("Astria tune response missing tune id");
+  }
+
+  console.error("[astria tune] step=done ok", { tuneId: id });
   return id;
 }
 
@@ -174,7 +245,11 @@ export async function enqueueAstriaVariationPrompts(params: {
         await createAstriaPrompt({
           tuneId,
           text: spec.prompt,
-          callback: astriaPromptWebhookUrl(sessionId, idx),
+          callback: astriaPromptWebhookUrl(
+            sessionId,
+            idx,
+            getPublicAppBaseUrl(),
+          ),
           w,
           h,
         });

@@ -280,7 +280,7 @@ export default function ResultsClient() {
           error?: string;
         };
 
-        if (!fin.ok && finJson.status !== "processing") {
+        if (!fin.ok) {
           throw new Error(finJson.error ?? "Could not complete order");
         }
 
@@ -376,7 +376,12 @@ export default function ResultsClient() {
   }
 
   if (sessionId) {
+    const blockingError =
+      orderErr ??
+      (order?.status === "failed" && order.error ? order.error : null);
+
     const showSpinner =
+      !blockingError &&
       (phase === "hydrating" ||
         phase === "finalizing" ||
         phase === "polling") &&
@@ -384,6 +389,7 @@ export default function ResultsClient() {
       order?.status !== "failed";
 
     const tookTooLong =
+      !blockingError &&
       (phase === "hydrating" || phase === "finalizing" || phase === "polling") &&
       elapsedClock - startedAt > 26 * 60 * 1000 &&
       order?.status !== "ready";
@@ -399,12 +405,17 @@ export default function ResultsClient() {
             using your Stripe session.
           </p>
 
-          {orderErr ? (
-            <Panel className="mt-6 p-6">
-              <p className="text-sm text-white/80">
-                Something went wrong. Email getportr@gmail.com and we&apos;ll fix
-                it or give you a full refund.
+          {blockingError ? (
+            <Panel className="mt-8 p-6">
+              <h2 className="text-lg font-semibold tracking-tight text-white">
+                We couldn&apos;t complete your order
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-white/80 whitespace-pre-wrap">
+                {blockingError}
               </p>
+              <div className="mt-6">
+                <Button href="/upload">Try again</Button>
+              </div>
             </Panel>
           ) : null}
 
@@ -447,22 +458,16 @@ export default function ResultsClient() {
           ) : null}
 
           {tookTooLong ? (
-            <Panel className="mt-6 p-6">
-              <p className="text-sm text-white/80">
-                Something went wrong. Email getportr@gmail.com and we&apos;ll fix
-                it or give you a full refund.
-              </p>
-            </Panel>
-          ) : null}
-
-          {order?.status === "failed" ? (
             <Panel className="mt-8 p-6">
-              <p className="text-sm text-white/80">
-                Something went wrong. Email getportr@gmail.com and we&apos;ll fix
-                it or give you a full refund.
+              <h2 className="text-lg font-semibold tracking-tight text-white">
+                Still processing
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-white/80">
+                This is taking longer than usual. You can keep waiting or start
+                over with a new upload.
               </p>
-              <div className="mt-4">
-                <Button href="/upload">Try a new upload</Button>
+              <div className="mt-6">
+                <Button href="/upload">Try again</Button>
               </div>
             </Panel>
           ) : null}
