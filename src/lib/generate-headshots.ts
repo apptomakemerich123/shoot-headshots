@@ -42,7 +42,7 @@ function buildFluxLoraTrainingInput(
     trigger_word: LORA_TRIGGER_WORD,
     create_masks: true,
     is_style: false,
-    steps: 1000,
+    steps: 500,
     multiresolution_noise_discount: 0.1,
   };
 }
