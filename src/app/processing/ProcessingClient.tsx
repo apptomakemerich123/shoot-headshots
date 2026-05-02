@@ -3,7 +3,7 @@
 import { SiteShell } from "@/components/SiteShell";
 import { Panel } from "@/components/ui";
 import { PRODUCT, type OrderRecord } from "@/lib/types-order";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const POLL_MS = 10_000;
@@ -60,12 +60,19 @@ export default function ProcessingClient() {
   const [err, setErr] = useState<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
 
-  /** Persist start time per checkout session so refresh does not reset the clock. */
-  useEffect(() => {
-    if (!sessionId || !sessionId.startsWith("cs_")) return;
-
+  /**
+   * Persist order start time per Stripe checkout session (`session_id`) so refresh
+   * does not reset elapsed time. Sync once before paint to avoid a 0s flash.
+   */
+  useLayoutEffect(() => {
+    if (!sessionId?.startsWith("cs_")) return;
     const startMs = readOrInitProcessingStart(sessionId);
+    setElapsedMs(Date.now() - startMs);
+  }, [sessionId]);
 
+  useEffect(() => {
+    if (!sessionId?.startsWith("cs_")) return;
+    const startMs = readOrInitProcessingStart(sessionId);
     const tick = () => setElapsedMs(Date.now() - startMs);
     tick();
     const id = window.setInterval(tick, 1000);
@@ -153,8 +160,9 @@ export default function ProcessingClient() {
           </h1>
 
           <p className="mt-4 max-w-md text-pretty text-[15px] leading-relaxed text-white/72">
-            We&apos;ll email you at the address you used at checkout when your
-            headshots are ready. You can safely close this tab.
+            We&apos;ll email you at the address you used at checkout. When your
+            headshots are ready, we&apos;ll send you the link there — you can
+            safely close this tab.
           </p>
 
           {/* Animated progress */}
@@ -210,8 +218,8 @@ export default function ProcessingClient() {
           </Panel>
 
           <p className="mt-8 max-w-sm text-xs leading-relaxed text-white/40">
-            We&apos;ll email you when ready. You can also tap the link in your
-            Stripe receipt to return here anytime.
+            We&apos;ll email you at the address you used at checkout. You can
+            also tap the link in your Stripe receipt to return here anytime.
           </p>
         </div>
       </div>
