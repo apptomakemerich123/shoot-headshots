@@ -16,8 +16,8 @@ import type { VariationSpec } from "./variations";
 export const TRAINING_MODEL_ID = "fal-ai/flux-lora-fast-training";
 const GENERATION_MODEL_ID = "fal-ai/flux-lora";
 
-/** Must match training `trigger_word`; include in every generation prompt. */
-export const LORA_TRIGGER_WORD = "portrperson";
+/** Must match training `trigger_word`; prefixed at the start of every generation prompt. */
+export const LORA_TRIGGER_WORD = "ohwx person";
 
 const PHOTO_PREFIX =
   `Professional corporate headshot photograph of ${LORA_TRIGGER_WORD}, looking at the camera, natural flattering light on face and shoulders, sharp facial details, catchlights in eyes, authentic professional portrait, not a selfie. `;
@@ -34,16 +34,23 @@ function requireEnv(name: string) {
   return v;
 }
 
-export type GenerationPhase = "training" | "generating";
-
-export async function trainFluxLora(imagesDataUrl: string): Promise<string> {
-  const input: FluxLoraFastTrainingInput = {
+function buildFluxLoraTrainingInput(
+  imagesDataUrl: string,
+): FluxLoraFastTrainingInput {
+  return {
     images_data_url: imagesDataUrl,
     trigger_word: LORA_TRIGGER_WORD,
     create_masks: true,
     is_style: false,
-    steps: 750,
+    steps: 1000,
+    multiresolution_noise_discount: 0.1,
   };
+}
+
+export type GenerationPhase = "training" | "generating";
+
+export async function trainFluxLora(imagesDataUrl: string): Promise<string> {
+  const input = buildFluxLoraTrainingInput(imagesDataUrl);
 
   const result = await fal.subscribe(TRAINING_MODEL_ID, {
     input,
@@ -59,13 +66,7 @@ export async function trainFluxLora(imagesDataUrl: string): Promise<string> {
 /** Non-blocking queue submit; poll status + `queue.result` elsewhere. */
 export async function submitLoraTrainingQueue(imagesDataUrl: string): Promise<string> {
   fal.config({ credentials: requireEnv("FAL_KEY") });
-  const input: FluxLoraFastTrainingInput = {
-    images_data_url: imagesDataUrl,
-    trigger_word: LORA_TRIGGER_WORD,
-    create_masks: true,
-    is_style: false,
-    steps: 750,
-  };
+  const input = buildFluxLoraTrainingInput(imagesDataUrl);
   const enqueued = await fal.queue.submit(TRAINING_MODEL_ID, { input });
   const id =
     "request_id" in enqueued && typeof enqueued.request_id === "string"
@@ -80,13 +81,14 @@ export async function generateSingleFluxHeadshot(
   spec: VariationSpec,
 ): Promise<string> {
   fal.config({ credentials: requireEnv("FAL_KEY") });
+  /** Trigger phrase must lead every prompt for consistent identity conditioning. */
   const prompt = `${LORA_TRIGGER_WORD}, ${PHOTO_PREFIX}${PHOTO_REALISM_BLOCK}${WARDROBE_PREFIX}${spec.prompt}`;
 
   const input: FluxLoraGenerationInput = {
     prompt,
     image_size: spec.image_size as FluxLoraGenerationInput["image_size"],
-    num_inference_steps: 32,
-    guidance_scale: 3.5,
+    num_inference_steps: 28,
+    guidance_scale: 7,
     loras: [{ path: loraWeightsUrl, scale: 1 }],
     enable_safety_checker: true,
     output_format: "jpeg",

@@ -11,6 +11,8 @@ export type FluxLoraFastTrainingInput = {
   create_masks?: boolean;
   is_style?: boolean;
   steps?: number;
+  /** Face/subject training noise schedule (model-specific; aligns with Flux trainer API). */
+  multiresolution_noise_discount?: number;
   data_archive_format?: string;
   is_input_format_already_preprocessed?: boolean;
 };
