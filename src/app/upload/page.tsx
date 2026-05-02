@@ -163,6 +163,10 @@ export default function UploadPage() {
 
   async function onContinue() {
     setError(null);
+    if (!gender) {
+      setError("Please select whether you are a man or a woman above.");
+      return;
+    }
     if (count < MIN_COUNT) {
       setError(
         `Please select at least ${MIN_COUNT} photos (you have ${count}).`,
@@ -216,13 +220,6 @@ export default function UploadPage() {
       const imagesDataUrl = zipInit.fileUrl;
 
       bump(W_PREVIEW + W_BUILD + W_ZIP);
-      if (!gender) {
-        setError("Please select whether your photos are of a man or a woman.");
-        setLoading(false);
-        setUploadPct(0);
-        return;
-      }
-
       const body = await registerUploadSession({
         previewUrl,
         imagesDataUrl,
@@ -272,116 +269,157 @@ export default function UploadPage() {
 
         <Panel className="mt-8 overflow-hidden">
           <div className="border-b border-[var(--border)] bg-black/30 px-5 py-5 sm:px-8 sm:py-7">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-xs font-medium tracking-[0.18em] text-white/55">
-                  YOUR SET
-                </p>
-                <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-white">
-                  {count}/{MAX_COUNT}{" "}
-                  <span className="text-base font-normal text-white/55">
-                    photos selected
+            <p className="text-xs font-medium tracking-[0.18em] text-white/55">
+              STEP 1 — ABOUT YOU
+            </p>
+            <p className="mt-2 text-base font-medium text-white sm:text-lg">
+              Are you a man or woman?
+            </p>
+            <p className="mt-1 text-xs text-white/45">
+              Used for every AI headshot prompt and stored with your order.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  setError(null);
+                  setGender("man");
+                }}
+                className={cn(
+                  "min-h-[48px] flex-1 rounded-full border px-6 py-3 text-sm font-semibold transition sm:flex-none sm:min-w-[160px]",
+                  gender === "man"
+                    ? "border-white/50 bg-white text-black"
+                    : "border-white/18 bg-white/[0.06] text-white hover:border-white/30 hover:bg-white/[0.1]",
+                  loading && "pointer-events-none opacity-50",
+                )}
+              >
+                Man
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  setError(null);
+                  setGender("woman");
+                }}
+                className={cn(
+                  "min-h-[48px] flex-1 rounded-full border px-6 py-3 text-sm font-semibold transition sm:flex-none sm:min-w-[160px]",
+                  gender === "woman"
+                    ? "border-white/50 bg-white text-black"
+                    : "border-white/18 bg-white/[0.06] text-white hover:border-white/30 hover:bg-white/[0.1]",
+                  loading && "pointer-events-none opacity-50",
+                )}
+              >
+                Woman
+              </button>
+            </div>
+            {!gender && !loading ? (
+              <p className="mt-4 text-sm text-white/50">
+                Choose one option above to unlock photo upload and tips.
+              </p>
+            ) : null}
+
+            {gender ? (
+              <>
+                <div className="mt-8 rounded-2xl border border-white/[0.12] bg-black/40 px-4 py-5 text-left sm:px-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
+                    Photo quality tips
+                  </p>
+                  <div className="mt-4 grid gap-6 sm:grid-cols-2 sm:gap-8">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-emerald-200/90">
+                        Good examples
+                      </p>
+                      <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-white/78">
+                        <li>Front-facing, looking at the camera</li>
+                        <li>Good lighting on your face</li>
+                        <li>Plain or simple backgrounds</li>
+                        <li>Recent photos (how you look now)</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-amber-200/85">
+                        Avoid
+                      </p>
+                      <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-white/78">
+                        <li>Sunglasses or hats hiding your face</li>
+                        <li>Group photos or other people in frame</li>
+                        <li>Heavy filters or beauty modes</li>
+                        <li>Blurry or very dark shots</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex flex-wrap items-end justify-between gap-4 border-t border-white/[0.06] pt-8">
+                  <div>
+                    <p className="text-xs font-medium tracking-[0.18em] text-white/55">
+                      YOUR SET
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-white">
+                      {count}/{MAX_COUNT}{" "}
+                      <span className="text-base font-normal text-white/55">
+                        photos selected
+                      </span>
+                    </p>
+                  </div>
+                  {needsMore ? (
+                    <p className="max-w-sm text-right text-sm leading-snug text-amber-200/90">
+                      Add at least {MIN_COUNT - count} more photo
+                      {MIN_COUNT - count === 1 ? "" : "s"} to continue (
+                      {count}/{MIN_COUNT} minimum).
+                    </p>
+                  ) : (
+                    <p className="text-sm text-emerald-200/85">
+                      Minimum reached — you can continue to checkout.
+                    </p>
+                  )}
+                </div>
+
+                <input
+                  ref={inputRef}
+                  className="sr-only"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.heic,.heif,.webp,image/*"
+                  multiple
+                  disabled={loading}
+                  onChange={(e) => {
+                    processFileList(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+
+                <button
+                  type="button"
+                  disabled={loading || count >= MAX_COUNT}
+                  onDragOver={onDropZoneDragOver}
+                  onDragLeave={onDropZoneDragLeave}
+                  onDrop={onDropZoneDrop}
+                  onClick={() => inputRef.current?.click()}
+                  className={cn(
+                    "group mt-6 flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 transition sm:min-h-[280px]",
+                    dragOver
+                      ? "border-white/50 bg-white/[0.08]"
+                      : "border-white/20 bg-white/[0.03] hover:border-white/35 hover:bg-white/[0.06]",
+                    (loading || count >= MAX_COUNT) &&
+                      "cursor-not-allowed opacity-50 hover:border-white/20 hover:bg-white/[0.03]",
+                  )}
+                >
+                  <span className="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium tracking-wide text-white/80">
+                    Tap or drop photos
                   </span>
-                </p>
-              </div>
-              {needsMore ? (
-                <p className="max-w-sm text-right text-sm leading-snug text-amber-200/90">
-                  Add at least {MIN_COUNT - count} more photo
-                  {MIN_COUNT - count === 1 ? "" : "s"} to continue (
-                  {count}/{MIN_COUNT} minimum).
-                </p>
-              ) : (
-                <p className="text-sm text-emerald-200/85">
-                  Minimum reached — you can continue to checkout.
-                </p>
-              )}
-            </div>
-
-            <input
-              ref={inputRef}
-              className="sr-only"
-              type="file"
-              accept=".jpg,.jpeg,.png,.heic,.heif,.webp,image/*"
-              multiple
-              disabled={loading}
-              onChange={(e) => {
-                processFileList(e.target.files);
-                e.target.value = "";
-              }}
-            />
-
-            <button
-              type="button"
-              disabled={loading || count >= MAX_COUNT}
-              onDragOver={onDropZoneDragOver}
-              onDragLeave={onDropZoneDragLeave}
-              onDrop={onDropZoneDrop}
-              onClick={() => inputRef.current?.click()}
-              className={cn(
-                "group mt-6 flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 transition sm:min-h-[280px]",
-                dragOver
-                  ? "border-white/50 bg-white/[0.08]"
-                  : "border-white/20 bg-white/[0.03] hover:border-white/35 hover:bg-white/[0.06]",
-                (loading || count >= MAX_COUNT) &&
-                  "cursor-not-allowed opacity-50 hover:border-white/20 hover:bg-white/[0.03]",
-              )}
-            >
-              <span className="rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium tracking-wide text-white/80">
-                Tap or drop photos
-              </span>
-              <span className="mt-4 max-w-md text-center text-sm text-white/55">
-                Drag files from your desktop, or choose from your phone — new picks add
-                to your selection (up to {MAX_COUNT}).
-              </span>
-              <span className="mt-6 text-xs text-white/40">
-                JPG, PNG, WebP, HEIC · HEIC previews show a label instead of a thumbnail
-              </span>
-            </button>
-
-            <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-5 text-left sm:px-5">
-              <p className="text-sm font-medium text-white">
-                Are you uploading photos of a man or woman?
-              </p>
-              <p className="mt-1 text-xs text-white/45">
-                Required — we use this for every generated headshot (order metadata).
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => {
-                    setError(null);
-                    setGender("man");
-                  }}
-                  className={cn(
-                    "min-h-[44px] flex-1 rounded-full border px-5 py-3 text-sm font-medium transition sm:flex-none sm:min-w-[140px]",
-                    gender === "man"
-                      ? "border-white/45 bg-white/12 text-white"
-                      : "border-white/15 bg-white/[0.04] text-white/80 hover:border-white/25 hover:bg-white/[0.07]",
-                    loading && "pointer-events-none opacity-50",
-                  )}
-                >
-                  Man
+                  <span className="mt-4 max-w-md text-center text-sm text-white/55">
+                    Drag files from your desktop or phone — new picks add to your
+                    selection (up to {MAX_COUNT}).
+                  </span>
+                  <span className="mt-6 text-xs text-white/40">
+                    JPG, PNG, WebP, HEIC · HEIC shows a filename preview instead of a
+                    thumbnail
+                  </span>
                 </button>
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => {
-                    setError(null);
-                    setGender("woman");
-                  }}
-                  className={cn(
-                    "min-h-[44px] flex-1 rounded-full border px-5 py-3 text-sm font-medium transition sm:flex-none sm:min-w-[140px]",
-                    gender === "woman"
-                      ? "border-white/45 bg-white/12 text-white"
-                      : "border-white/15 bg-white/[0.04] text-white/80 hover:border-white/25 hover:bg-white/[0.07]",
-                    loading && "pointer-events-none opacity-50",
-                  )}
-                >
-                  Woman
-                </button>
-              </div>
-            </div>
+              </>
+            ) : null}
 
             {loading ? (
               <div className="mt-6 space-y-2">
@@ -424,14 +462,9 @@ export default function UploadPage() {
               ) : null}
             </div>
 
-            {needsMore && !loading ? (
+            {gender && needsMore && !loading ? (
               <p className="mt-3 text-sm text-white/50">
                 Continue is disabled until you have at least {MIN_COUNT} photos.
-              </p>
-            ) : null}
-            {!needsMore && needsGender && !loading ? (
-              <p className="mt-3 text-sm text-amber-200/85">
-                Choose man or woman above to continue — this is saved with your order.
               </p>
             ) : null}
           </div>
@@ -440,7 +473,11 @@ export default function UploadPage() {
             <p className="mb-3 px-1 text-xs font-medium tracking-[0.18em] text-white/45">
               PREVIEW GRID
             </p>
-            {count === 0 ? (
+            {!gender ? (
+              <div className="flex min-h-[160px] items-center justify-center rounded-xl border border-dashed border-white/15 px-4 text-center text-sm text-white/45">
+                Select man or woman above to start adding photos.
+              </div>
+            ) : count === 0 ? (
               <div className="flex min-h-[160px] items-center justify-center rounded-xl border border-dashed border-white/15 text-sm text-white/45">
                 No photos yet — add some above
               </div>

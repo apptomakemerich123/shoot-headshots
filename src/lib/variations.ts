@@ -1,9 +1,9 @@
 import type { OrderGender } from "@/lib/types-order";
 
-/** Leading clause for every preset — trigger + professional gender (see `buildVariationList`). */
+/** Leading clause for every preset — `ohwx person, man|woman,` (see `buildVariationList`). */
 export function variationPromptLead(gender: OrderGender): string {
-  const role = gender === "woman" ? "woman" : "man";
-  return `ohwx person, professional ${role}, `;
+  const word = gender === "woman" ? "woman" : "man";
+  return `ohwx person, ${word}, `;
 }
 
 /** 40 distinct looks: varied backgrounds + clothing. Gender-neutral scene copy; gender is prefixed in `buildVariationList`. */
