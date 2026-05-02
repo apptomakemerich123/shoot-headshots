@@ -14,6 +14,12 @@ const ASTRIA_API = "https://api.astria.ai";
 /** Flux1.dev baseline — user-specified gallery tune id */
 export const ASTRIA_BASE_TUNE_ID = 690204;
 
+/** Astria `tune[name]` allows only English letters, numbers, and spaces. */
+export function sanitizeAstriaTuneName(sessionId: string): string {
+  const out = sessionId.replace(/[^a-zA-Z0-9]/g, " ").trim();
+  return out.length > 0 ? out : "portr order";
+}
+
 function requireAstriaApiKey(): string {
   const key = process.env.ASTRIA_API_KEY?.trim();
   if (!key) throw new Error("ASTRIA_API_KEY is not set");
@@ -87,9 +93,11 @@ export async function createAstriaTune(params: {
   zipUrl: string;
 }): Promise<number> {
   const { sessionId, zipUrl } = params;
+  const tuneName = sanitizeAstriaTuneName(sessionId);
 
   console.error("[astria tune] step=start", {
     sessionId,
+    tuneName,
     zipHostname: (() => {
       try {
         return new URL(zipUrl).hostname;
@@ -128,8 +136,8 @@ export async function createAstriaTune(params: {
 
   console.error("[astria tune] step=build_multipart");
   const fd = new FormData();
-  fd.append("tune[title]", sessionId);
-  fd.append("tune[name]", sessionId);
+  fd.append("tune[title]", tuneName);
+  fd.append("tune[name]", tuneName);
   fd.append("tune[base_tune_id]", String(ASTRIA_BASE_TUNE_ID));
   fd.append("tune[branch]", "flux1");
   fd.append("tune[token]", "ohwx");
