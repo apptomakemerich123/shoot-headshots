@@ -24,6 +24,8 @@ export type OrderRecord = {
   imagesDataUrl?: string;
   /** Astria fine-tune id after `POST /tunes`. */
   astriaTuneId?: number;
+  /** Trigger token returned by Astria on tune creation — required in every prompt `text`. */
+  astriaTuneToken?: string;
   /** Set after the tune webhook enqueues 40 `POST /tunes/:id/prompts` jobs. */
   astriaPromptsSubmitted?: boolean;
   /** Slots 0..39 filled as Astria prompt callbacks arrive (order matches `buildVariationList`). */

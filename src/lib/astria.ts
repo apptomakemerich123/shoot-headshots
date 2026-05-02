@@ -26,16 +26,29 @@ function requireAstriaApiKey(): string {
   return key;
 }
 
-function snap8(n: number): number {
-  return Math.max(64, Math.round(n / 8) * 8);
-}
-
-export function dimensionsFromVariation(spec: VariationSpec): { w: number; h: number } {
+/**
+ * Astria prompt max dimension is 768. Use 512×768 for portrait-oriented presets, else 768×768.
+ */
+export function astriaPromptDimensions(spec: VariationSpec): { w: number; h: number } {
+  const ratio = spec.aspect_ratio?.ratio;
+  if (ratio === "3:4" || ratio === "9:16") {
+    return { w: 512, h: 768 };
+  }
   const s = spec.image_size;
   if (typeof s === "object" && s !== null && "width" in s && "height" in s) {
-    return { w: snap8(s.width), h: snap8(s.height) };
+    if (s.height > s.width) return { w: 512, h: 768 };
+    return { w: 768, h: 768 };
   }
-  return { w: 1024, h: 1360 };
+  if (typeof s === "string") {
+    if (
+      s === "portrait_4_3" ||
+      s === "portrait_16_9" ||
+      s.startsWith("portrait")
+    ) {
+      return { w: 512, h: 768 };
+    }
+  }
+  return { w: 768, h: 768 };
 }
 
 export function astriaTuneWebhookUrl(sessionId: string, baseUrl: string): string {
@@ -83,7 +96,12 @@ async function fetchZipAsImageBlobs(zipUrl: string): Promise<Blob[]> {
   return blobs;
 }
 
-export type AstriaTuneCreateResult = { id: number };
+export type AstriaTuneCreateResult = {
+  id: number;
+  token?: string;
+};
+
+export type CreatedAstriaTune = { tuneId: number; tuneToken: string };
 
 /**
  * POST multipart tune to Astria with training images extracted from the user zip on FAL CDN.
@@ -91,7 +109,7 @@ export type AstriaTuneCreateResult = { id: number };
 export async function createAstriaTune(params: {
   sessionId: string;
   zipUrl: string;
-}): Promise<number> {
+}): Promise<CreatedAstriaTune> {
   const { sessionId, zipUrl } = params;
   const tuneName = sanitizeAstriaTuneName(sessionId);
 
@@ -192,8 +210,18 @@ export async function createAstriaTune(params: {
     throw new Error("Astria tune response missing tune id");
   }
 
-  console.error("[astria tune] step=done ok", { tuneId: id });
-  return id;
+  const rawTok =
+    typeof json.token === "string" ? json.token.trim() : "";
+  const tuneToken = rawTok.length > 0 ? rawTok : "ohwx";
+  if (!rawTok.length) {
+    console.error(
+      "[astria tune] step=token missing in Astria response; prompts may fail — using fallback",
+      { tuneId: id },
+    );
+  }
+
+  console.error("[astria tune] step=done ok", { tuneId: id, tuneToken });
+  return { tuneId: id, tuneToken };
 }
 
 /**
@@ -249,7 +277,7 @@ export async function enqueueAstriaVariationPrompts(params: {
     await Promise.all(
       slice.map(async (spec, j) => {
         const idx = i + j;
-        const { w, h } = dimensionsFromVariation(spec);
+        const { w, h } = astriaPromptDimensions(spec);
         await createAstriaPrompt({
           tuneId,
           text: spec.prompt,

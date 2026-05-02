@@ -1,9 +1,10 @@
 import type { OrderGender } from "@/lib/types-order";
 
-/** Leading clause for every preset — `ohwx person, man|woman,` (see `buildVariationList`). */
-export function variationPromptLead(gender: OrderGender): string {
+/** Leading clause for every preset — `{token} person, man|woman,` (Astria requires the tune token in prompt text). */
+export function variationPromptLead(tuneToken: string, gender: OrderGender): string {
   const word = gender === "woman" ? "woman" : "man";
-  return `ohwx person, ${word}, `;
+  const t = tuneToken.trim() || "ohwx";
+  return `${t} person, ${word}, `;
 }
 
 /** 40 distinct looks: varied backgrounds + clothing. Gender-neutral scene copy; gender is prefixed in `buildVariationList`. */
@@ -395,8 +396,9 @@ const BASE_PRESETS: VariationSpec[] = [
 export function buildVariationList(
   count: number,
   gender: OrderGender,
+  tuneToken: string,
 ): VariationSpec[] {
-  const lead = variationPromptLead(gender);
+  const lead = variationPromptLead(tuneToken, gender);
   const out: VariationSpec[] = [];
   for (let i = 0; i < count; i++) {
     const base = BASE_PRESETS[i % BASE_PRESETS.length];

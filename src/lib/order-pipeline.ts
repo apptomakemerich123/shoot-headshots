@@ -19,13 +19,14 @@ export async function submitTrainingForOrder(sessionId: string): Promise<void> {
     const order = await storeGet<OrderRecord>(storeKeys.order(sessionId));
     if (!order?.imagesDataUrl || order.astriaTuneId != null) return;
 
-    const tuneId = await createAstriaTune({
+    const { tuneId, tuneToken } = await createAstriaTune({
       sessionId,
       zipUrl: order.imagesDataUrl,
     });
 
     await patchOrder(sessionId, {
       astriaTuneId: tuneId,
+      astriaTuneToken: tuneToken,
       jobPhase: "training",
     });
   } catch (e) {
@@ -42,6 +43,8 @@ export async function submitTrainingForOrder(sessionId: string): Promise<void> {
       imagesDataUrl: last?.imagesDataUrl,
       previewUrl: last?.previewUrl,
       customerEmail: last?.customerEmail,
+      astriaTuneId: last?.astriaTuneId,
+      astriaTuneToken: last?.astriaTuneToken,
       error: msg,
       updatedAt: Date.now(),
     } satisfies OrderRecord);

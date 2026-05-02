@@ -55,7 +55,22 @@ export async function handleAstriaTuneWebhook(
 
   try {
     const gender = order.gender ?? "man";
-    const specs = buildVariationList(PRODUCT.count, gender);
+
+    let tuneToken =
+      order.astriaTuneToken?.trim() ||
+      (typeof entity.token === "string" ? entity.token.trim() : "");
+    if (!order.astriaTuneToken?.trim() && tuneToken) {
+      await patchOrder(sessionId, { astriaTuneToken: tuneToken });
+    }
+    if (!tuneToken) {
+      tuneToken = "ohwx";
+      console.error(
+        "[astria webhook] missing astriaTuneToken on order and tune payload; using ohwx fallback",
+        { sessionId, tuneId },
+      );
+    }
+
+    const specs = buildVariationList(PRODUCT.count, gender, tuneToken);
 
     await patchOrder(sessionId, {
       jobPhase: "generating",
@@ -81,6 +96,7 @@ export async function handleAstriaTuneWebhook(
       previewUrl: last?.previewUrl,
       customerEmail: last?.customerEmail,
       astriaTuneId: last?.astriaTuneId,
+      astriaTuneToken: last?.astriaTuneToken,
       error: msg,
       updatedAt: Date.now(),
     } satisfies OrderRecord);
@@ -134,9 +150,11 @@ async function mergeAstriaPromptSlot(
   const next = [...slots];
   next[index] = imageUrl;
 
-  const labels = buildVariationList(PRODUCT.count, cur.gender ?? "man").map(
-    (s) => s.label,
-  );
+  const labels = buildVariationList(
+    PRODUCT.count,
+    cur.gender ?? "man",
+    cur.astriaTuneToken ?? "ohwx",
+  ).map((s) => s.label);
 
   const filled = next.every((u) => typeof u === "string" && u.length > 0);
   if (!filled) {
@@ -155,6 +173,7 @@ async function mergeAstriaPromptSlot(
     imagesDataUrl: cur.imagesDataUrl,
     previewUrl: cur.previewUrl,
     astriaTuneId: cur.astriaTuneId,
+    astriaTuneToken: cur.astriaTuneToken,
     astriaPromptsSubmitted: true,
     astriaPromptSlots: next,
     imageUrls: next as string[],
