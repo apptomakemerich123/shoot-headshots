@@ -1,12 +1,76 @@
 "use client";
 
 import { SiteShell } from "@/components/SiteShell";
-import { Button, Panel } from "@/components/ui";
+import { Button, cn, Panel } from "@/components/ui";
 import { PRODUCT, type JobPhase, type OrderRecord } from "@/lib/types-order";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const UPLOAD_TOKEN_STORAGE_KEY = "portr_upload_token";
+
+function favoritesStorageKey(sessionId: string) {
+  return `portr_result_favorites_${sessionId}`;
+}
+
+function loadFavoriteUrls(sessionId: string): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(favoritesStorageKey(sessionId));
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((x): x is string => typeof x === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveFavoriteUrls(sessionId: string, urls: Set<string>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      favoritesStorageKey(sessionId),
+      JSON.stringify([...urls]),
+    );
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function HeartIcon({ filled }: { filled: boolean }) {
+  if (filled) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        className="h-5 w-5 text-rose-400"
+        aria-hidden
+      >
+        <path
+          fill="currentColor"
+          d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.292 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.218l-.022.012-.007.003-.002.001h-.002z"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className="h-5 w-5 text-white/90"
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z"
+      />
+    </svg>
+  );
+}
 
 /** Advances pipeline + returns latest order (use while processing). */
 async function fetchOrderProgress(sessionId: string): Promise<OrderRecord | null> {
@@ -46,6 +110,28 @@ export default function ResultsClient() {
   const [zipErr, setZipErr] = useState<string | null>(null);
   const [genProgress, setGenProgress] = useState(0);
   const [elapsedClock, setElapsedClock] = useState(() => Date.now());
+
+  const [favoriteUrls, setFavoriteUrls] = useState<string[]>([]);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+
+  useEffect(() => {
+    if (!sessionId || typeof window === "undefined") return;
+    setFavoriteUrls([...loadFavoriteUrls(sessionId)]);
+  }, [sessionId]);
+
+  const favoriteSet = useMemo(() => new Set(favoriteUrls), [favoriteUrls]);
+
+  function toggleFavorite(url: string) {
+    setFavoriteUrls((prev) => {
+      const next = prev.includes(url)
+        ? prev.filter((u) => u !== url)
+        : [...prev, url];
+      if (sessionId && typeof window !== "undefined") {
+        queueMicrotask(() => saveFavoriteUrls(sessionId, new Set(next)));
+      }
+      return next;
+    });
+  }
 
   // Merge URL query + sessionStorage (fixes lost ?t= and matches server-side file/KV store).
   useEffect(() => {
@@ -385,10 +471,19 @@ export default function ResultsClient() {
           order.imageUrls &&
           order.imageUrls.length > 0 ? (
             <>
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-white/70">
-                  {/* no email delivery messaging */}
-                </p>
+              <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={() => setFavoritesOnly((v) => !v)}
+                  className={cn(
+                    "inline-flex min-h-[44px] items-center justify-center rounded-full border px-5 py-2.5 text-sm font-medium transition",
+                    favoritesOnly
+                      ? "border-rose-400/50 bg-rose-500/15 text-rose-100"
+                      : "border-white/15 bg-white/[0.05] text-white/85 hover:border-white/25 hover:bg-white/[0.08]",
+                  )}
+                >
+                  {favoritesOnly ? "Show all photos" : "Show favorites only"}
+                </button>
                 <Button
                   type="button"
                   disabled={zipLoading}
@@ -419,33 +514,79 @@ export default function ResultsClient() {
               <p className="mt-8 text-xs font-medium tracking-[0.18em] text-white/55">
                 ALL {PRODUCT.count} VARIATIONS
               </p>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                {order.imageUrls.map((url, i) => (
-                  <Panel key={url + i} className="overflow-hidden p-0">
-                    <div className="border-b border-[var(--border)] px-2 py-1.5 text-[10px] leading-tight text-white/55 sm:text-xs">
-                      {order.labels?.[i] ?? `Variation ${i + 1}`}
+              {(() => {
+                const items = order.imageUrls.map((url, i) => ({
+                  url,
+                  i,
+                  label: order.labels?.[i] ?? `Variation ${i + 1}`,
+                }));
+                const visible = favoritesOnly
+                  ? items.filter((x) => favoriteSet.has(x.url))
+                  : items;
+                return (
+                  <>
+                    {favoritesOnly && visible.length === 0 ? (
+                      <p className="mt-4 text-sm text-white/55">
+                        No favorites yet — tap the heart on any shot you love.
+                      </p>
+                    ) : null}
+                    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                      {visible.map(({ url, i, label }) => {
+                        const isFav = favoriteSet.has(url);
+                        return (
+                          <Panel
+                            key={`${sessionId}-${i}-${url}`}
+                            className="overflow-hidden p-0"
+                          >
+                            <div className="border-b border-[var(--border)] px-2 py-1.5 text-[10px] leading-tight text-white/55 sm:text-xs">
+                              {label}
+                            </div>
+                            <div className="relative aspect-[3/4] bg-black">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={url}
+                                alt={label}
+                                className="h-full w-full object-cover"
+                              />
+                              {isFav ? (
+                                <span
+                                  className="pointer-events-none absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-rose-400 shadow-md backdrop-blur-[2px]"
+                                  aria-hidden
+                                >
+                                  <HeartIcon filled />
+                                </span>
+                              ) : null}
+                              <button
+                                type="button"
+                                aria-label={
+                                  isFav
+                                    ? "Remove from favorites"
+                                    : "Add to favorites"
+                                }
+                                aria-pressed={isFav}
+                                className="absolute left-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/55 shadow-md backdrop-blur-[2px] transition hover:bg-black/75"
+                                onClick={() => toggleFavorite(url)}
+                              >
+                                <HeartIcon filled={isFav} />
+                              </button>
+                            </div>
+                            <div className="p-1.5">
+                              <a
+                                className="text-[10px] text-white/80 underline sm:text-xs"
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Open
+                              </a>
+                            </div>
+                          </Panel>
+                        );
+                      })}
                     </div>
-                    <div className="aspect-[3/4] bg-black">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={url}
-                        alt={order.labels?.[i] ?? `Headshot ${i + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div className="p-1.5">
-                      <a
-                        className="text-[10px] text-white/80 underline sm:text-xs"
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Open
-                      </a>
-                    </div>
-                  </Panel>
-                ))}
-              </div>
+                  </>
+                );
+              })()}
             </>
           ) : null}
         </div>
