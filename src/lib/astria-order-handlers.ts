@@ -1,6 +1,7 @@
 import { sendHeadshotDeliveryEmail } from "@/lib/email";
 import {
   enqueueAstriaVariationPrompts,
+  extractAstriaTuneTokenFromTuneEntity,
   extractImageUrlsFromAstriaPromptPayload,
   isTuneObjectLikelyComplete,
   unwrapAstriaEntity,
@@ -55,12 +56,9 @@ export async function handleAstriaTuneWebhook(
 
   try {
     let tuneToken = order.astriaTuneToken;
-    if (
-      (!tuneToken || tuneToken.length === 0) &&
-      typeof entity.token === "string" &&
-      entity.token.length > 0
-    ) {
-      tuneToken = entity.token;
+    const fromCallback = extractAstriaTuneTokenFromTuneEntity(entity);
+    if ((!tuneToken || tuneToken.length === 0) && fromCallback) {
+      tuneToken = fromCallback;
       await patchOrder(sessionId, { astriaTuneToken: tuneToken });
     }
     if (!tuneToken || tuneToken.length === 0) {

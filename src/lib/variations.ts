@@ -1,9 +1,16 @@
-/** Full Astria trigger string (verbatim from API) + preset body — do not alter `tuneToken`. */
+/** Appended to every Astria prompt after the preset body (comma-separated quality cues). */
+export const ASTRIA_PROMPT_QUALITY_SUFFIX =
+  "sharp focus, professional studio lighting, natural skin texture, high-end photography, sharp eyes, 8k resolution, photorealistic, Canon EOS R5 85mm portrait lens";
+
+/**
+ * Full prompt text: Astria trigger string exactly as returned, one ASCII space, preset copy,
+ * then quality suffix. The token value itself is never trimmed or altered.
+ */
 export function astriaVariationFullPrompt(
   tuneToken: string,
   basePresetPrompt: string,
 ): string {
-  return `${tuneToken}, ${basePresetPrompt}`;
+  return `${tuneToken} ${basePresetPrompt}, ${ASTRIA_PROMPT_QUALITY_SUFFIX}`;
 }
 
 /** Display labels for the gallery (independent of Astria trigger token). */

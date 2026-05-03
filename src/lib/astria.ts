@@ -103,6 +103,34 @@ export type AstriaTuneCreateResult = {
 
 export type CreatedAstriaTune = { tuneId: number; tuneToken: string };
 
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === "string" && v.length > 0;
+}
+
+/**
+ * Full trigger string from `POST /tunes` JSON — verbatim, never trimmed.
+ * Supports top-level `token` or nested `{ tune: { token } }`.
+ */
+export function extractAstriaTuneTokenFromCreateJson(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const r = json as Record<string, unknown>;
+  if (isNonEmptyString(r.token)) return r.token;
+  const tune = r["tune"];
+  if (tune !== null && typeof tune === "object") {
+    const tok = (tune as Record<string, unknown>)["token"];
+    if (isNonEmptyString(tok)) return tok;
+  }
+  return null;
+}
+
+/** Full trigger string from a tune webhook / entity object — verbatim, never trimmed. */
+export function extractAstriaTuneTokenFromTuneEntity(
+  entity: Record<string, unknown>,
+): string | null {
+  if (isNonEmptyString(entity.token)) return entity.token;
+  return null;
+}
+
 /**
  * POST multipart tune to Astria with training images extracted from the user zip on FAL CDN.
  */
@@ -210,13 +238,13 @@ export async function createAstriaTune(params: {
     throw new Error("Astria tune response missing tune id");
   }
 
-  if (typeof json.token !== "string" || json.token.length === 0) {
+  const tuneToken = extractAstriaTuneTokenFromCreateJson(json);
+  if (tuneToken == null) {
     console.error("[astria tune] step=token FAILED raw=", json);
     throw new Error(
       "Astria tune response missing non-empty `token` (full trigger string required for prompts)",
     );
   }
-  const tuneToken = json.token;
 
   console.error("[astria tune] step=done ok", { tuneId: id, tuneToken });
   return { tuneId: id, tuneToken };
@@ -239,6 +267,9 @@ export async function createAstriaPrompt(params: {
   fd.append("prompt[num_images]", "1");
   fd.append("prompt[w]", String(w));
   fd.append("prompt[h]", String(h));
+  /** Astria documents these as `steps` (0–50) and `cfg_scale` (0–15), not `num_inference_steps`. */
+  fd.append("prompt[steps]", "50");
+  fd.append("prompt[cfg_scale]", "7");
   fd.append("prompt[face_correct]", "true");
   fd.append("prompt[super_resolution]", "true");
 
