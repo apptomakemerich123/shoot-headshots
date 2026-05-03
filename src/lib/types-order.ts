@@ -24,7 +24,7 @@ export type OrderRecord = {
   imagesDataUrl?: string;
   /** Astria fine-tune id after `POST /tunes`. */
   astriaTuneId?: number;
-  /** Trigger token returned by Astria on tune creation — required in every prompt `text`. */
+  /** Full trigger string returned by Astria on tune creation (verbatim, e.g. `ohwx cs_live_…`) — required in every prompt `text`. */
   astriaTuneToken?: string;
   /** Set after the tune webhook enqueues 40 `POST /tunes/:id/prompts` jobs. */
   astriaPromptsSubmitted?: boolean;

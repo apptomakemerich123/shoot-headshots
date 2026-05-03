@@ -210,15 +210,13 @@ export async function createAstriaTune(params: {
     throw new Error("Astria tune response missing tune id");
   }
 
-  const rawTok =
-    typeof json.token === "string" ? json.token.trim() : "";
-  const tuneToken = rawTok.length > 0 ? rawTok : "ohwx";
-  if (!rawTok.length) {
-    console.error(
-      "[astria tune] step=token missing in Astria response; prompts may fail — using fallback",
-      { tuneId: id },
+  if (typeof json.token !== "string" || json.token.length === 0) {
+    console.error("[astria tune] step=token FAILED raw=", json);
+    throw new Error(
+      "Astria tune response missing non-empty `token` (full trigger string required for prompts)",
     );
   }
+  const tuneToken = json.token;
 
   console.error("[astria tune] step=done ok", { tuneId: id, tuneToken });
   return { tuneId: id, tuneToken };
@@ -265,8 +263,10 @@ export async function enqueueAstriaVariationPrompts(params: {
   sessionId: string;
   tuneId: number;
   specs: VariationSpec[];
+  /** Exact Astria trigger string (same as stored on the order). */
+  tuneToken: string;
 }): Promise<void> {
-  const { sessionId, tuneId, specs } = params;
+  const { sessionId, tuneId, specs, tuneToken } = params;
   if (specs.length !== PRODUCT.count) {
     throw new Error(`Expected ${PRODUCT.count} variation specs`);
   }
@@ -278,6 +278,9 @@ export async function enqueueAstriaVariationPrompts(params: {
       slice.map(async (spec, j) => {
         const idx = i + j;
         const { w, h } = astriaPromptDimensions(spec);
+        console.log(
+          `[astria prompt] submitting idx=${idx} tuneTokenUsed=${tuneToken} promptLength=${spec.prompt.length}`,
+        );
         await createAstriaPrompt({
           tuneId,
           text: spec.prompt,

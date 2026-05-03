@@ -8,7 +8,7 @@ import {
 import { patchOrder } from "@/lib/patch-order";
 import { storeDel, storeGet, storeKeys, storeSet, storeSetNx } from "@/lib/store";
 import { PRODUCT, type OrderRecord } from "@/lib/types-order";
-import { buildVariationList } from "@/lib/variations";
+import { buildVariationList, variationDisplayLabels } from "@/lib/variations";
 
 function astriaPromptsLockKey(sessionId: string) {
   return `astria-prompts-lock:${sessionId}`;
@@ -54,23 +54,22 @@ export async function handleAstriaTuneWebhook(
   }
 
   try {
-    const gender = order.gender ?? "man";
-
-    let tuneToken =
-      order.astriaTuneToken?.trim() ||
-      (typeof entity.token === "string" ? entity.token.trim() : "");
-    if (!order.astriaTuneToken?.trim() && tuneToken) {
+    let tuneToken = order.astriaTuneToken;
+    if (
+      (!tuneToken || tuneToken.length === 0) &&
+      typeof entity.token === "string" &&
+      entity.token.length > 0
+    ) {
+      tuneToken = entity.token;
       await patchOrder(sessionId, { astriaTuneToken: tuneToken });
     }
-    if (!tuneToken) {
-      tuneToken = "ohwx";
-      console.error(
-        "[astria webhook] missing astriaTuneToken on order and tune payload; using ohwx fallback",
-        { sessionId, tuneId },
+    if (!tuneToken || tuneToken.length === 0) {
+      throw new Error(
+        "Missing Astria tune token on order (full trigger string required for prompts)",
       );
     }
 
-    const specs = buildVariationList(PRODUCT.count, gender, tuneToken);
+    const specs = buildVariationList(PRODUCT.count, tuneToken);
 
     await patchOrder(sessionId, {
       jobPhase: "generating",
@@ -81,6 +80,7 @@ export async function handleAstriaTuneWebhook(
       sessionId,
       tuneId,
       specs,
+      tuneToken,
     });
 
     await patchOrder(sessionId, { astriaPromptsSubmitted: true });
@@ -150,11 +150,7 @@ async function mergeAstriaPromptSlot(
   const next = [...slots];
   next[index] = imageUrl;
 
-  const labels = buildVariationList(
-    PRODUCT.count,
-    cur.gender ?? "man",
-    cur.astriaTuneToken ?? "ohwx",
-  ).map((s) => s.label);
+  const labels = variationDisplayLabels(PRODUCT.count);
 
   const filled = next.every((u) => typeof u === "string" && u.length > 0);
   if (!filled) {

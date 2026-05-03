@@ -1,13 +1,22 @@
-import type { OrderGender } from "@/lib/types-order";
-
-/** Leading clause for every preset — `{token} person, man|woman,` (Astria requires the tune token in prompt text). */
-export function variationPromptLead(tuneToken: string, gender: OrderGender): string {
-  const word = gender === "woman" ? "woman" : "man";
-  const t = tuneToken.trim() || "ohwx";
-  return `${t} person, ${word}, `;
+/** Full Astria trigger string (verbatim from API) + preset body — do not alter `tuneToken`. */
+export function astriaVariationFullPrompt(
+  tuneToken: string,
+  basePresetPrompt: string,
+): string {
+  return `${tuneToken}, ${basePresetPrompt}`;
 }
 
-/** 40 distinct looks: varied backgrounds + clothing. Gender-neutral scene copy; gender is prefixed in `buildVariationList`. */
+/** Display labels for the gallery (independent of Astria trigger token). */
+export function variationDisplayLabels(count: number): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const base = BASE_PRESETS[i % BASE_PRESETS.length];
+    out.push(`${base.label} (#${i + 1})`);
+  }
+  return out;
+}
+
+/** 40 distinct looks: varied backgrounds + clothing. Astria trigger token is prefixed verbatim in `buildVariationList`. */
 export type BackgroundStyle =
   | "professional"
   | "corporate"
@@ -395,10 +404,8 @@ const BASE_PRESETS: VariationSpec[] = [
 
 export function buildVariationList(
   count: number,
-  gender: OrderGender,
   tuneToken: string,
 ): VariationSpec[] {
-  const lead = variationPromptLead(tuneToken, gender);
   const out: VariationSpec[] = [];
   for (let i = 0; i < count; i++) {
     const base = BASE_PRESETS[i % BASE_PRESETS.length];
@@ -406,7 +413,7 @@ export function buildVariationList(
       background_style: base.background_style,
       aspect_ratio: base.aspect_ratio,
       image_size: base.image_size,
-      prompt: `${lead}${base.prompt}`,
+      prompt: astriaVariationFullPrompt(tuneToken, base.prompt),
       label: `${base.label} (#${i + 1})`,
     });
   }
