@@ -1,6 +1,6 @@
-/** Appended to every Astria prompt after the preset body (comma-separated quality cues). */
+/** Appended after preset copy — kept concise for Flux (long prompts can hurt alignment). */
 export const ASTRIA_PROMPT_QUALITY_SUFFIX =
-  "sharp focus, professional studio lighting, natural skin texture, high-end photography, sharp eyes, 8k resolution, photorealistic, Canon EOS R5 85mm portrait lens";
+  "sharp focus, professional studio lighting, natural skin texture, photorealistic, 85mm portrait, catchlights in eyes";
 
 /**
  * Full prompt text: Astria trigger string exactly as returned, one ASCII space, preset copy,

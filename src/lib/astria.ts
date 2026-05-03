@@ -252,6 +252,9 @@ export async function createAstriaTune(params: {
 
 /**
  * POST one prompt job to Astria (one generated image per prompt).
+ * Flux: use only fields from the official multipart examples — optional flags like
+ * `super_resolution`, `face_correct`, `steps`, and `cfg_scale` often produce HTTP 422
+ * on Flux LoRA inference depending on account/backend.
  */
 export async function createAstriaPrompt(params: {
   tuneId: number;
@@ -261,30 +264,58 @@ export async function createAstriaPrompt(params: {
   h: number;
 }): Promise<void> {
   const { tuneId, text, callback, w, h } = params;
-  const fd = new FormData();
-  fd.append("prompt[text]", text);
-  fd.append("prompt[callback]", callback);
-  fd.append("prompt[num_images]", "1");
-  fd.append("prompt[w]", String(w));
-  fd.append("prompt[h]", String(h));
-  /** Astria documents these as `steps` (0–50) and `cfg_scale` (0–15), not `num_inference_steps`. */
-  fd.append("prompt[steps]", "50");
-  fd.append("prompt[cfg_scale]", "7");
-  fd.append("prompt[face_correct]", "true");
-  fd.append("prompt[super_resolution]", "true");
 
-  const res = await fetch(`${ASTRIA_API}/tunes/${tuneId}/prompts`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${requireAstriaApiKey()}`,
-    },
-    body: fd,
-  });
+  function buildPromptFormData(): FormData {
+    const f = new FormData();
+    f.append("prompt[text]", text);
+    f.append("prompt[callback]", callback);
+    f.append("prompt[num_images]", "1");
+    f.append("prompt[w]", String(w));
+    f.append("prompt[h]", String(h));
+    return f;
+  }
+
+  const url = `${ASTRIA_API}/tunes/${tuneId}/prompts`;
+  const auth = `Bearer ${requireAstriaApiKey()}`;
+
+  async function postOnce(): Promise<Response> {
+    return fetch(url, {
+      method: "POST",
+      headers: { Authorization: auth },
+      body: buildPromptFormData(),
+    });
+  }
+
+  let res = await postOnce();
+  if (res.status === 429 || (res.status >= 500 && res.status < 600)) {
+    console.error("[astria prompt] retrying after transient status", res.status);
+    await new Promise((r) => setTimeout(r, 2500));
+    res = await postOnce();
+  }
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(errText) as unknown;
+    } catch {
+      parsed = null;
+    }
+    console.error("[astria prompt] request failed", {
+      tuneId,
+      httpStatus: res.status,
+      responseBody: errText.slice(0, 4000),
+      parsedJson: parsed,
+      promptChars: text.length,
+      w,
+      h,
+    });
+    const detail =
+      parsed && typeof parsed === "object" && "errors" in parsed
+        ? JSON.stringify((parsed as { errors?: unknown }).errors)
+        : errText.slice(0, 1500);
     throw new Error(
-      `Astria prompt failed (${res.status}): ${errText.slice(0, 800)}`,
+      `Astria prompt failed (${res.status}): ${detail || errText.slice(0, 500)}`.trim(),
     );
   }
 }
@@ -302,7 +333,7 @@ export async function enqueueAstriaVariationPrompts(params: {
     throw new Error(`Expected ${PRODUCT.count} variation specs`);
   }
 
-  const concurrency = 4;
+  const concurrency = 2;
   for (let i = 0; i < specs.length; i += concurrency) {
     const slice = specs.slice(i, i + concurrency);
     await Promise.all(

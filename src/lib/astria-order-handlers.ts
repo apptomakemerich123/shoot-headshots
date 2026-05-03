@@ -86,6 +86,7 @@ export async function handleAstriaTuneWebhook(
     return Response.json({ ok: true, enqueued: PRODUCT.count });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Astria prompt enqueue failed";
+    console.error("[astria webhook] tune→prompts enqueue failed", { sessionId }, e);
     const last = await storeGet<OrderRecord>(storeKeys.order(sessionId));
     await storeSet(storeKeys.order(sessionId), {
       status: "failed",
